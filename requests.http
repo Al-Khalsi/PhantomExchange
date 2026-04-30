@@ -2,7 +2,11 @@
 GET http://localhost:3000/orders
 
 
-### Create BUY order (BTC)
+### Get portfolio (initial state)
+GET http://localhost:3000/portfolio
+
+
+### Create BUY order (open BTC position)
 POST http://localhost:3000/orders
 Content-Type: application/json
 
@@ -13,12 +17,24 @@ Content-Type: application/json
 }
 
 
-### Create SELL order (ETH)
+### Check portfolio after BUY
+GET http://localhost:3000/portfolio
+
+
+### Create SELL order (close BTC position)
 POST http://localhost:3000/orders
 Content-Type: application/json
 
 {
-  "symbol": "ETHUSDT",
+  "symbol": "BTCUSDT",
   "side": "SELL",
-  "quantity": 0.5
+  "quantity": 0.01
 }
+
+
+### Check portfolio after SELL
+GET http://localhost:3000/portfolio
+
+
+### Get all orders again
+GET http://localhost:3000/orders

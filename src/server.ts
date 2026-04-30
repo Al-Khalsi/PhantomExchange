@@ -3,19 +3,22 @@ import { startPriceEngine } from "./engine/priceEngine";
 import { setupWebSocket } from "./realtime/websocket";
 import { marketRoutes } from "./routes/marketRoutes";
 import { orderRoutes } from "./routes/orderRoutes";
+import { portfolioRoutes } from "./routes/portfolioRoutes";
 
 const app = Fastify({
   logger: true
 });
 
+// --- REGISTER ROUTES ---
 app.register(marketRoutes);
-
 app.register(orderRoutes);
+app.register(portfolioRoutes);
 
 app.get("/", async () => {
   return { status: "PhantomExchange running" };
 });
 
+// --- SERVER START ---
 const start = async () => {
   try {
     const server = await app.listen({

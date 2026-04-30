@@ -1,5 +1,6 @@
 import { marketStore } from "../store/marketStore";
 import { orderStore, OrderSide } from "../store/orderStore";
+import { portfolioStore } from "../store/portfolioStore";
 
 export function executeMarketOrder(
   symbol: string,
@@ -20,6 +21,13 @@ export function executeMarketOrder(
     quantity,
     price,
   });
+
+  // --- Portfolio Logic ---
+  if (side === "BUY") {
+    portfolioStore.openPosition(symbol, "LONG", price, quantity);
+  } else if (side === "SELL") {
+    portfolioStore.closePosition(symbol, price);
+  }
 
   return order;
 }
