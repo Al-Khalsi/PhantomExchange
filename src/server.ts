@@ -1,10 +1,13 @@
 import Fastify from "fastify";
 import { startPriceEngine } from "./engine/priceEngine";
 import { setupWebSocket } from "./realtime/websocket";
+import { marketRoutes } from "./routes/marketRoutes";
 
 const app = Fastify({
   logger: true
 });
+
+app.register(marketRoutes);
 
 app.get("/", async () => {
   return { status: "PhantomExchange running" };
