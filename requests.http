@@ -1,0 +1,24 @@
+### Get all orders
+GET http://localhost:3000/orders
+
+
+### Create BUY order (BTC)
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "symbol": "BTCUSDT",
+  "side": "BUY",
+  "quantity": 0.01
+}
+
+
+### Create SELL order (ETH)
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "symbol": "ETHUSDT",
+  "side": "SELL",
+  "quantity": 0.5
+}
