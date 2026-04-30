@@ -18,6 +18,14 @@ class PortfolioStore {
     );
   }
 
+  getOpenPositions(): Position[] {
+    return this.positions.filter((p) => p.status === "OPEN");
+  }
+
+  getClosedPositions(): Position[] {
+    return this.positions.filter((p) => p.status === "CLOSED");
+  }
+
   openPosition(
     symbol: string,
     side: "LONG" | "SHORT",
@@ -38,6 +46,8 @@ class PortfolioStore {
 
     this.positions.push(position);
     this.cash -= entryPrice * size;
+
+    broadcastPortfolioUpdate();
 
     return position;
   }
@@ -60,6 +70,8 @@ class PortfolioStore {
     pos.lastUpdate = new Date().toISOString();
 
     this.cash += exitPrice * pos.size;
+
+    broadcastPortfolioUpdate();
 
     return pos;
   }
