@@ -1,7 +1,7 @@
 import { Position } from "../types/position";
 
 class PortfolioStore {
-    private cash = 10000; // USDT initial — موقت، بعداً از PDF الگو می‌گیریم
+    private cash = 10000;
     private positions: Position[] = [];
 
     getPortfolio() {
@@ -29,8 +29,6 @@ class PortfolioStore {
         };
 
         this.positions.push(position);
-
-        // کاهش موجودی (موقت - بعداً دقیق‌تر می‌شود)
         this.cash -= entryPrice * size;
 
         return position;
@@ -40,24 +38,36 @@ class PortfolioStore {
         const pos = this.getOpenPosition(symbol);
         if (!pos) return null;
 
-        // محاسبه سود/ضرر
-        const pnl = (exitPrice - pos.entryPrice) * pos.size;
+        let pnl = 0;
+
+        if (pos.side === "LONG") {
+            pnl = (exitPrice - pos.entryPrice) * pos.size;
+        } else {
+            pnl = (pos.entryPrice - exitPrice) * pos.size;
+        }
+
         pos.realizedPnl = pnl;
+        pos.unrealizedPnl = 0;
         pos.status = "CLOSED";
         pos.lastUpdate = new Date().toISOString();
 
-        // بازگرداندن پول
-        this.cash += (exitPrice * pos.size);
+        this.cash += exitPrice * pos.size;
 
         return pos;
     }
 
-    updateUnrealized(symbol: string, currentPrice: number) {
-        const pos = this.getOpenPosition(symbol);
-        if (!pos) return;
+    updateUnrealizedPnL(markPrice: number) {
+        for (const pos of this.positions) {
+            if (pos.status !== "OPEN") continue;
 
-        pos.unrealizedPnl = (currentPrice - pos.entryPrice) * pos.size;
-        pos.lastUpdate = new Date().toISOString();
+            if (pos.side === "LONG") {
+                pos.unrealizedPnl = (markPrice - pos.entryPrice) * pos.size;
+            } else {
+                pos.unrealizedPnl = (pos.entryPrice - markPrice) * pos.size;
+            }
+
+            pos.lastUpdate = new Date().toISOString();
+        }
     }
 }
 
