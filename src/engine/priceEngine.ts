@@ -1,4 +1,5 @@
 import { marketStore } from "../store/marketStore";
+import { portfolioStore } from "../store/portfolioStore";
 
 const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
 
@@ -32,16 +33,20 @@ function updatePrices() {
   const tickers = marketStore.getAll();
 
   tickers.forEach((ticker) => {
-    const volatility = ticker.price * 0.001; // 0.1% fluctuation
+    const volatility = ticker.price * 0.001;
     const change = randomBetween(-volatility, volatility);
-
     const newPrice = Math.max(0.0001, ticker.price + change);
 
-    marketStore.set(ticker.symbol, {
+    const updated = {
       ...ticker,
       price: Number(newPrice.toFixed(2)),
       change24h: Number((ticker.change24h + change).toFixed(2))
-    });
+    };
+
+    marketStore.set(ticker.symbol, updated);
+
+    // Update unrealized PnL for this symbol
+    portfolioStore.updateUnrealizedPnL(updated.price);
   });
 }
 
