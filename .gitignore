@@ -38,3 +38,6 @@ temp/
 .cache/
 .npm/
 .pnpm-store/
+
+tree.txt
+project_dump_ts.txt
