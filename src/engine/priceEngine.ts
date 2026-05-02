@@ -24,7 +24,7 @@ function initializeMarket() {
       symbol,
       price: basePrice,
       change24h: 0,
-      volume24h: randomBetween(100_000_000, 900_000_000)
+      volume24h: randomBetween(100_000_000, 900_000_000),
     });
   });
 }
@@ -34,19 +34,21 @@ function updatePrices() {
 
   tickers.forEach((ticker) => {
     const volatility = ticker.price * 0.001;
+
     const change = randomBetween(-volatility, volatility);
+
     const newPrice = Math.max(0.0001, ticker.price + change);
 
     const updated = {
       ...ticker,
-      price: Number(newPrice.toFixed(2)),
-      change24h: Number((ticker.change24h + change).toFixed(2))
+      price: Number(newPrice.toFixed(4)),
+      change24h: Number((ticker.change24h + change).toFixed(4)),
     };
 
     marketStore.set(ticker.symbol, updated);
 
-    // Update unrealized PnL for this symbol
-    portfolioStore.updateUnrealizedPnL(updated.price);
+    // ✅ Update PNL for positions of this symbol
+    portfolioStore.updatePrice(ticker.symbol, updated.price);
   });
 }
 

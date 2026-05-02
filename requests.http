@@ -1,4 +1,21 @@
 ############################################################
+#                       ACCOUNT API                        #
+############################################################
+
+### Get account balance
+GET http://localhost:3000/account/balance
+
+
+### Get account equity
+GET http://localhost:3000/account/equity
+
+
+### Get account PNL
+GET http://localhost:3000/account/pnl
+
+
+
+############################################################
 #                       ORDERS API                         #
 ############################################################
 
@@ -25,6 +42,10 @@ Content-Type: application/json
 GET http://localhost:3000/portfolio
 
 
+### Check account after BUY
+GET http://localhost:3000/account/balance
+
+
 ### Create SELL order (close BTC position)
 POST http://localhost:3000/orders
 Content-Type: application/json
@@ -38,6 +59,14 @@ Content-Type: application/json
 
 ### Check portfolio after SELL
 GET http://localhost:3000/portfolio
+
+
+### Check account after SELL
+GET http://localhost:3000/account/balance
+
+
+### Check account PNL
+GET http://localhost:3000/account/pnl
 
 
 ### Get all orders again

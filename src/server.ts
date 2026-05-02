@@ -4,6 +4,7 @@ import { setupWebSocket } from "./realtime/websocket";
 import { marketRoutes } from "./routes/marketRoutes";
 import { orderRoutes } from "./routes/orderRoutes";
 import { portfolioRoutes } from "./routes/portfolioRoutes";
+import { accountRoutes } from "./routes/accountRoutes";
 import { setupEventListeners } from "./realtime/eventListener";
 import { marketDataStore } from "./store/marketDataStore";
 import { generateMockCandles } from "./utils/mockMarketData";
@@ -16,6 +17,7 @@ const app = Fastify({
 app.register(marketRoutes);
 app.register(orderRoutes);
 app.register(portfolioRoutes);
+app.register(accountRoutes);
 
 app.get("/", async () => {
   return { status: "PhantomExchange running" };

@@ -1,11 +1,19 @@
 export interface Position {
-    symbol: string;
-    side: "LONG" | "SHORT";
-    entryPrice: number;
-    size: number;          // مقدار دارایی
-    openedAt: string;      // ISO timestamp
-    lastUpdate: string;    // ISO timestamp
-    realizedPnl: number;   // تا الان چقدر سود/ضرر بسته شده
-    unrealizedPnl: number; // بر اساس آخرین قیمت
-    status: "OPEN" | "CLOSED";
+  symbol: string;
+  side: "LONG" | "SHORT";
+
+  entryPrice: number;
+  exitPrice?: number;      // Exit price (set when the position is closed)
+
+  size: number;            // Asset amount / position size
+
+  openedAt: string;        // ISO timestamp when the position was opened
+  closedAt?: string;       // ISO timestamp when the position was closed
+
+  lastUpdate: string;      // Last price update timestamp
+
+  realizedPnl: number;     // Profit/Loss already realized after closing
+  unrealizedPnl: number;   // PnL based on the latest market price
+
+  status: "OPEN" | "CLOSED";
 }

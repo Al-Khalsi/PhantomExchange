@@ -5,17 +5,9 @@ class PortfolioStore {
   private cash = 10000;
   private positions: Position[] = [];
 
-  getPortfolio() {
-    return {
-      cash: this.cash,
-      positions: this.positions,
-    };
-  }
-
-  getOpenPosition(symbol: string): Position | undefined {
-    return this.positions.find(
-      (p) => p.symbol === symbol && p.status === "OPEN",
-    );
+  // GETTERS
+  getBalance() {
+    return this.cash;
   }
 
   getOpenPositions(): Position[] {
@@ -26,12 +18,37 @@ class PortfolioStore {
     return this.positions.filter((p) => p.status === "CLOSED");
   }
 
+  getOpenPosition(symbol: string): Position | undefined {
+    return this.positions.find(
+      (p) => p.symbol === symbol && p.status === "OPEN",
+    );
+  }
+
+  // Total Unrealized PNL
+  getTotalUnrealizedPNL() {
+    return this.getOpenPositions().reduce((acc, p) => acc + p.unrealizedPnl, 0);
+  }
+
+  // Total Realized PNL
+  getTotalRealizedPNL() {
+    return this.getClosedPositions().reduce((acc, p) => acc + p.realizedPnl, 0);
+  }
+
+  // Equity = cash + unrealized
+  getEquity() {
+    return this.cash + this.getTotalUnrealizedPNL();
+  }
+
+  // OPEN POSITION
   openPosition(
     symbol: string,
     side: "LONG" | "SHORT",
     entryPrice: number,
     size: number,
   ) {
+    const cost = entryPrice * size;
+    this.cash -= cost;
+
     const position: Position = {
       symbol,
       side,
@@ -39,19 +56,18 @@ class PortfolioStore {
       size,
       openedAt: new Date().toISOString(),
       lastUpdate: new Date().toISOString(),
-      realizedPnl: 0,
       unrealizedPnl: 0,
+      realizedPnl: 0,
       status: "OPEN",
     };
 
     this.positions.push(position);
-    this.cash -= entryPrice * size;
-
     broadcastPortfolioUpdate();
 
     return position;
   }
 
+  // CLOSE POSITION
   closePosition(symbol: string, exitPrice: number) {
     const pos = this.getOpenPosition(symbol);
     if (!pos) return null;
@@ -67,29 +83,47 @@ class PortfolioStore {
     pos.realizedPnl = pnl;
     pos.unrealizedPnl = 0;
     pos.status = "CLOSED";
+    pos.exitPrice = exitPrice;
+    pos.closedAt = new Date().toISOString();
     pos.lastUpdate = new Date().toISOString();
 
-    this.cash += exitPrice * pos.size;
+    // Realized PNL gets added to cash
+    this.cash += pos.entryPrice * pos.size + pnl;
 
     broadcastPortfolioUpdate();
 
     return pos;
   }
 
-  updateUnrealizedPnL(markPrice: number) {
-    for (const pos of this.positions) {
-      if (pos.status !== "OPEN") continue;
+  // UPDATE PRICE → UPDATE UPNL
+  updatePrice(symbol: string, newPrice: number) {
+    const openPositions = this.getOpenPositions().filter(
+      (p) => p.symbol === symbol,
+    );
 
+    for (const pos of openPositions) {
       if (pos.side === "LONG") {
-        pos.unrealizedPnl = (markPrice - pos.entryPrice) * pos.size;
+        pos.unrealizedPnl = (newPrice - pos.entryPrice) * pos.size;
       } else {
-        pos.unrealizedPnl = (pos.entryPrice - markPrice) * pos.size;
+        pos.unrealizedPnl = (pos.entryPrice - newPrice) * pos.size;
       }
 
       pos.lastUpdate = new Date().toISOString();
     }
 
     broadcastPortfolioUpdate();
+  }
+
+  // FULL PORTFOLIO SNAPSHOT
+  getPortfolioSnapshot() {
+    return {
+      balance: this.getBalance(),
+      equity: this.getEquity(),
+      realizedPNL: this.getTotalRealizedPNL(),
+      unrealizedPNL: this.getTotalUnrealizedPNL(),
+      openPositions: this.getOpenPositions(),
+      closedPositions: this.getClosedPositions(),
+    };
   }
 }
 
