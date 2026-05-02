@@ -1,5 +1,6 @@
-export type Candle = {
-  time: number
+export type OHLC = {
+  openTime: number
+  closeTime: number
   open: number
   high: number
   low: number
@@ -10,13 +11,21 @@ export type Candle = {
 type MarketSeries = {
   symbol: string
   timeframe: string
-  candles: Candle[]
+  candles: OHLC[]
 }
 
 class MarketDataStore {
+  // All OHLCV series loaded from mock or external source
   private data: MarketSeries[] = []
 
-  set(symbol: string, timeframe: string, candles: Candle[]) {
+  // L1 price feed
+  private prices: Record<string, number> = {}
+
+  // List of supported symbols
+  public symbols: string[] = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"]
+
+  // Store OHLCV for a symbol & timeframe
+  set(symbol: string, timeframe: string, candles: OHLC[]) {
     const existing = this.data.find(
       (d) => d.symbol === symbol && d.timeframe === timeframe
     )
@@ -24,28 +33,38 @@ class MarketDataStore {
     if (existing) {
       existing.candles = candles
     } else {
-      this.data.push({
-        symbol,
-        timeframe,
-        candles
-      })
+      this.data.push({ symbol, timeframe, candles })
+    }
+
+    // Initialize L1 price from last candle
+    if (candles.length > 0) {
+      const last = candles[candles.length - 1]
+      this.prices[symbol] = last.close
     }
   }
 
-  get(symbol: string, timeframe: string): Candle[] {
+  // Return OHLCV for a symbol & timeframe
+  get(symbol: string, timeframe: string): OHLC[] {
     const entry = this.data.find(
       (d) => d.symbol === symbol && d.timeframe === timeframe
     )
-
-    if (!entry) return []
-
-    return entry.candles
+    return entry ? entry.candles : []
   }
 
-  getLast(symbol: string, timeframe: string): Candle | null {
+  // Get last OHLCV candle
+  getLast(symbol: string, timeframe: string): OHLC | null {
     const candles = this.get(symbol, timeframe)
-    if (!candles.length) return null
-    return candles[candles.length - 1]
+    return candles.length ? candles[candles.length - 1] : null
+  }
+
+  // Update live price (L1)
+  updatePrice(symbol: string, price: number) {
+    this.prices[symbol] = price
+  }
+
+  // Fetch live price (L1)
+  getPrice(symbol: string): number {
+    return this.prices[symbol] ?? 0
   }
 }
 
