@@ -1,14 +1,16 @@
 import { marketStore } from "../store/marketStore";
-import { orderStore, OrderSide } from "../store/orderStore";
+import { orderStore, OrderSide, OrderType } from "../store/orderStore";
 import { portfolioStore } from "../store/portfolioStore";
 import { eventBus } from "../utils/eventBus";
+import { matchOrder } from "./matchingEngine";
 
-export function executeMarketOrder(
+export function placeOrder(
   symbol: string,
   side: OrderSide,
-  quantity: number
+  type: OrderType,
+  quantity: number,
+  price?: number // Required for LIMIT orders
 ) {
-  
   // 1) Input Validation
   if (!symbol || typeof symbol !== "string") {
     const err = { type: "order:rejected", reason: "Invalid symbol", symbol };
@@ -22,49 +24,82 @@ export function executeMarketOrder(
     throw new Error("Invalid side");
   }
 
+  if (!["MARKET", "LIMIT"].includes(type)) {
+const err = { type: "order:rejected", reason: "Invalid order type", invalidType: type };
+    eventBus.emit("order:rejected", err);
+    throw new Error("Invalid order type");
+  }
+
   if (!quantity || quantity <= 0) {
     const err = { type: "order:rejected", reason: "Invalid quantity", quantity };
     eventBus.emit("order:rejected", err);
     throw new Error("Invalid quantity");
   }
 
-  // 2) Market Price Check
-  const ticker = marketStore.get(symbol);
-
-  if (!ticker) {
-    const err = { type: "order:rejected", reason: "Symbol not found", symbol };
+  if (type === "LIMIT" && (!price || price <= 0)) {
+    const err = { type: "order:rejected", reason: "Invalid limit price", price };
     eventBus.emit("order:rejected", err);
-    throw new Error("Symbol not found");
+    throw new Error("Invalid limit price");
   }
 
-  const price = ticker.price;
+  // 2) For MARKET orders, get current market price
+  let orderPrice: number;
+  if (type === "MARKET") {
+    const ticker = marketStore.get(symbol);
+    if (!ticker) {
+      const err = { type: "order:rejected", reason: "Symbol not found", symbol };
+      eventBus.emit("order:rejected", err);
+      throw new Error("Symbol not found");
+    }
+    orderPrice = ticker.price;
+  } else {
+    orderPrice = price!;
+  }
 
   // 3) Create Order
   const order = orderStore.create({
     symbol,
     side,
+    type,
     quantity,
-    price,
+    price: orderPrice,
   });
 
   eventBus.emit("order:created", order);
 
-  // 4) Execute Order Immediately (Market Fill)
-  order.status = "FILLED";
-  eventBus.emit("order:filled", order);
+  // 4) Match the order against existing orders
+  matchOrder(order);
 
-  // 5) Update Portfolio
-  if (side === "BUY") {
-    const pos = portfolioStore.openPosition(symbol, "LONG", price, quantity);
-    eventBus.emit("position:opened", pos);
-  } else {
-    const closed = portfolioStore.closePosition(symbol, price);
-
-    if (closed) {
-      eventBus.emit("position:closed", closed);
-    }
-  }
-
-  // 6) Return Final Order Object
+  // 5) Return Final Order Object
   return order;
+}
+
+// Keep legacy function for backward compatibility
+export function executeMarketOrder(
+  symbol: string,
+  side: OrderSide,
+  quantity: number
+) {
+  return placeOrder(symbol, side, "MARKET", quantity);
+}
+
+export function cancelOrder(orderId: string) {
+  const order = orderStore.cancelOrder(orderId);
+  
+  if (!order) {
+    const err = { type: "order:cancel:rejected", reason: "Order not found or cannot be cancelled", orderId };
+    eventBus.emit("order:cancel:rejected", err);
+    throw new Error("Order not found or cannot be cancelled");
+  }
+  
+  eventBus.emit("order:cancelled", order);
+  return order;
+}
+
+export function getOpenOrders() {
+  return orderStore.getOpenOrders();
+}
+
+export function getOrderById(orderId: string) {
+  return orderStore.getById(orderId);
 }
