@@ -1,5 +1,6 @@
 import { Order, OrderSide, OrderType, OrderStatus, orderStore } from "../store/orderStore";
 import { portfolioStore } from "../store/portfolioStore";
+import { balanceStore } from "../store/balanceStore";
 import { eventBus } from "../utils/eventBus";
 
 export interface Trade {
@@ -7,9 +8,12 @@ export interface Trade {
   symbol: string;
   price: number;
   quantity: number;
+  quoteQty: number;
   buyerOrderId: string;
   sellerOrderId: string;
   timestamp: string;
+  fee: number;
+  feeAsset: string;
 }
 
 class TradeStore {
@@ -29,10 +33,43 @@ export const tradeStore = new TradeStore();
 // Match a new order against existing open orders
 export function matchOrder(newOrder: Order): void {
   if (newOrder.status !== "OPEN") return;
+  
+  // Lock balance before matching
+  const symbol = newOrder.symbol;
+  const baseAsset = symbol.replace("USDT", "");
+  if (newOrder.side === "BUY") {
+    if (!balanceStore.lock("USDT", newOrder.price * newOrder.quantity)) {
+      newOrder.status = "CANCELLED";
+      orderStore.updateOrder(newOrder);
+      eventBus.emit("order:rejected", { orderId: newOrder.id, reason: "Insufficient balance" });
+      return;
+    }
+  } else {
+    if (!balanceStore.lock(baseAsset as any, newOrder.quantity)) {
+      newOrder.status = "CANCELLED";
+      orderStore.updateOrder(newOrder);
+      eventBus.emit("order:rejected", { orderId: newOrder.id, reason: "Insufficient balance" });
+      return;
+    }
+  }
+  
   if (newOrder.type === "MARKET") {
     executeMarketOrder(newOrder);
   } else if (newOrder.type === "LIMIT") {
     matchLimitOrder(newOrder);
+  }
+}
+
+function unlockRemaining(order: Order, price: number): void {
+  const symbol = order.symbol;
+  const baseAsset = symbol.replace("USDT", "");
+  const remainingQty = order.quantity - order.filledQuantity;
+  if (remainingQty <= 0) return;
+  
+  if (order.side === "BUY") {
+    balanceStore.unlock("USDT", order.price * remainingQty);
+  } else {
+    balanceStore.unlock(baseAsset as any, remainingQty);
   }
 }
 
@@ -44,15 +81,13 @@ function executeMarketOrder(marketOrder: Order): void {
   let remainingQty = marketOrder.quantity - marketOrder.filledQuantity;
   if (remainingQty <= 0) return;
 
-  // Get opposite side open orders
   const oppositeOrders = isBuy
     ? orderStore.getSellOpenOrders(symbol)
     : orderStore.getBuyOpenOrders(symbol);
   
-  // For MARKET, we take the best price (lowest ask for BUY, highest bid for SELL)
   const sortedOpposite = isBuy
-    ? [...oppositeOrders].sort((a, b) => a.price - b.price) // Buy takes lowest ask
-    : [...oppositeOrders].sort((a, b) => b.price - a.price); // Sell takes highest bid
+    ? [...oppositeOrders].sort((a, b) => a.price - b.price)
+    : [...oppositeOrders].sort((a, b) => b.price - a.price);
 
   for (const oppositeOrder of sortedOpposite) {
     if (remainingQty <= 0) break;
@@ -60,13 +95,11 @@ function executeMarketOrder(marketOrder: Order): void {
     const fillQty = Math.min(remainingQty, oppositeOrder.quantity - oppositeOrder.filledQuantity);
     const fillPrice = oppositeOrder.price;
     
-    // Execute trade
     executeTrade(marketOrder, oppositeOrder, fillPrice, fillQty);
     
     remainingQty -= fillQty;
   }
 
-  // Update remaining quantity
   marketOrder.filledQuantity = marketOrder.quantity - remainingQty;
   
   if (marketOrder.filledQuantity >= marketOrder.quantity) {
@@ -74,7 +107,8 @@ function executeMarketOrder(marketOrder: Order): void {
   } else if (marketOrder.filledQuantity > 0) {
     marketOrder.status = "PARTIALLY_FILLED";
   } else {
-    marketOrder.status = "CANCELLED"; // MARKET order with no liquidity gets cancelled
+    marketOrder.status = "CANCELLED";
+    unlockRemaining(marketOrder, 0);
   }
   
   orderStore.updateOrder(marketOrder);
@@ -88,15 +122,13 @@ function matchLimitOrder(limitOrder: Order): void {
   let remainingQty = limitOrder.quantity - limitOrder.filledQuantity;
   if (remainingQty <= 0) return;
 
-  // Get opposite side open orders that are price-compatible
   let oppositeOrders = isBuy
-    ? orderStore.getSellOpenOrders(symbol).filter(o => o.price <= limitOrder.price) // Buy limit: price >= ask
-    : orderStore.getBuyOpenOrders(symbol).filter(o => o.price >= limitOrder.price); // Sell limit: price <= bid
+    ? orderStore.getSellOpenOrders(symbol).filter(o => o.price <= limitOrder.price)
+    : orderStore.getBuyOpenOrders(symbol).filter(o => o.price >= limitOrder.price);
   
-  // Sort by price priority (best price first)
   oppositeOrders = isBuy
-    ? [...oppositeOrders].sort((a, b) => a.price - b.price) // Lowest ask first for buy
-    : [...oppositeOrders].sort((a, b) => b.price - a.price); // Highest bid first for sell
+    ? [...oppositeOrders].sort((a, b) => a.price - b.price)
+    : [...oppositeOrders].sort((a, b) => b.price - a.price);
 
   for (const oppositeOrder of oppositeOrders) {
     if (remainingQty <= 0) break;
@@ -104,13 +136,11 @@ function matchLimitOrder(limitOrder: Order): void {
     const fillQty = Math.min(remainingQty, oppositeOrder.quantity - oppositeOrder.filledQuantity);
     const fillPrice = oppositeOrder.price;
     
-    // Execute trade
     executeTrade(limitOrder, oppositeOrder, fillPrice, fillQty);
     
     remainingQty -= fillQty;
   }
 
-  // Update limit order
   limitOrder.filledQuantity = limitOrder.quantity - remainingQty;
   
   if (limitOrder.filledQuantity >= limitOrder.quantity) {
@@ -118,7 +148,7 @@ function matchLimitOrder(limitOrder: Order): void {
   } else if (limitOrder.filledQuantity > 0) {
     limitOrder.status = "PARTIALLY_FILLED";
   } else {
-    limitOrder.status = "OPEN"; // Still open
+    limitOrder.status = "OPEN";
   }
   
   orderStore.updateOrder(limitOrder);
@@ -126,50 +156,54 @@ function matchLimitOrder(limitOrder: Order): void {
 
 // Execute a single trade between two orders
 function executeTrade(buyerOrder: Order, sellerOrder: Order, price: number, quantity: number): void {
-  // Determine which is buy and which is sell
   const isBuyerFirst = buyerOrder.side === "BUY";
   const buyOrder = isBuyerFirst ? buyerOrder : sellerOrder;
   const sellOrder = isBuyerFirst ? sellerOrder : buyerOrder;
+  
+  const symbol = buyOrder.symbol;
+  const baseAsset = symbol.replace("USDT", "");
+  const quoteAmount = price * quantity;
+  const fee = quoteAmount * 0.001; // 0.1% fee
+  
+  // Transfer assets: buyer pays USDT, seller pays base asset
+  balanceStore.transfer(baseAsset as any, baseAsset as any, quantity, quantity);
+  balanceStore.transfer("USDT", "USDT", quoteAmount, quoteAmount - fee);
   
   // Update filled quantities
   buyOrder.filledQuantity += quantity;
   sellOrder.filledQuantity += quantity;
   
   // Update order statuses
-  if (buyOrder.filledQuantity >= buyOrder.quantity) {
-    buyOrder.status = "FILLED";
-  } else {
-    buyOrder.status = "PARTIALLY_FILLED";
-  }
-  
-  if (sellOrder.filledQuantity >= sellOrder.quantity) {
-    sellOrder.status = "FILLED";
-  } else {
-    sellOrder.status = "PARTIALLY_FILLED";
-  }
+  buyOrder.status = buyOrder.filledQuantity >= buyOrder.quantity ? "FILLED" : "PARTIALLY_FILLED";
+  sellOrder.status = sellOrder.filledQuantity >= sellOrder.quantity ? "FILLED" : "PARTIALLY_FILLED";
   
   orderStore.updateOrder(buyOrder);
   orderStore.updateOrder(sellOrder);
   
   // Update portfolio (open/close positions)
-  if (buyOrder.type === "MARKET" || sellOrder.type === "MARKET" || buyOrder.type === "LIMIT" || sellOrder.type === "LIMIT") {
-    // For a trade, the BUY opens/increases LONG position
-    // The SELL closes/reduces LONG position
-    const position = portfolioStore.getOpenPosition(buyOrder.symbol);
-    
-    if (position && position.status === "OPEN" && position.side === "LONG") {
-      // If we have an existing LONG position
-      if (sellOrder.filledQuantity > 0) {
-        // Closing some quantity - need to handle partial closing
-        // For simplicity, we close the full position for now
-        // TODO: Implement partial closing logic
-        portfolioStore.closePosition(buyOrder.symbol, price);
-      }
+  const position = portfolioStore.getOpenPosition(symbol);
+  
+  if (buyOrder.filledQuantity > 0) {
+    if (!position) {
+      portfolioStore.openPosition(symbol, "LONG", price, quantity);
+    } else if (position.side === "LONG") {
+      const newSize = position.size + quantity;
+      const newAvgPrice = (position.entryPrice * position.size + price * quantity) / newSize;
+      position.size = newSize;
+      position.entryPrice = newAvgPrice;
+      position.lastUpdate = new Date().toISOString();
     }
-    
-    // Simple logic: BUY order opens a new position
-    // SELL order closes the position
-    // This matches current simple portfolio logic
+  }
+  
+  if (sellOrder.filledQuantity > 0 && position && position.status === "OPEN") {
+    if (quantity >= position.size) {
+      portfolioStore.closePosition(symbol, price);
+    } else {
+      const pnl = (price - position.entryPrice) * quantity;
+      position.size -= quantity;
+      position.realizedPnl += pnl;
+      position.lastUpdate = new Date().toISOString();
+    }
   }
   
   // Create trade record
@@ -178,9 +212,12 @@ function executeTrade(buyerOrder: Order, sellerOrder: Order, price: number, quan
     symbol: buyOrder.symbol,
     price,
     quantity,
+    quoteQty: quoteAmount,
     buyerOrderId: buyOrder.id,
     sellerOrderId: sellOrder.id,
     timestamp: new Date().toISOString(),
+    fee,
+    feeAsset: "USDT"
   };
   
   tradeStore.add(trade);
