@@ -47,7 +47,7 @@ function updatePrices() {
 
     marketStore.set(ticker.symbol, updated);
 
-    // ✅ Update PNL for positions of this symbol
+    // Update PNL for positions of this symbol
     portfolioStore.updatePrice(ticker.symbol, updated.price);
   });
 }
