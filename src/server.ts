@@ -5,6 +5,8 @@ import { marketRoutes } from "./routes/marketRoutes";
 import { orderRoutes } from "./routes/orderRoutes";
 import { portfolioRoutes } from "./routes/portfolioRoutes";
 import { setupEventListeners } from "./realtime/eventListener";
+import { marketDataStore } from "./store/marketDataStore";
+import { generateMockCandles } from "./utils/mockMarketData";
 
 const app = Fastify({
   logger: true
@@ -23,6 +25,19 @@ app.get("/", async () => {
 const start = async () => {
   try {
 
+    // Inject OHLCV mock data (VERY IMPORTANT)
+    marketDataStore.set(
+      "BTCUSDT",
+      "1h",
+      generateMockCandles(62000, 200)
+    );
+
+    marketDataStore.set(
+      "ETHUSDT",
+      "1h",
+      generateMockCandles(3200, 200)
+    );
+
     const server = await app.listen({
       port: 3000,
       host: "0.0.0.0"
@@ -31,7 +46,7 @@ const start = async () => {
     // Setup Event System
     setupEventListeners();
 
-    // Start Market Price Simulation
+    // Start Market Price Simulation (L1 tickers)
     startPriceEngine();
 
     // Setup WebSocket

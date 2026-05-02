@@ -1,3 +1,7 @@
+############################################################
+#                       ORDERS API                         #
+############################################################
+
 ### Get all orders
 GET http://localhost:3000/orders
 
@@ -38,3 +42,76 @@ GET http://localhost:3000/portfolio
 
 ### Get all orders again
 GET http://localhost:3000/orders
+
+
+
+############################################################
+#                       PORTFOLIO API                      #
+############################################################
+
+### Get open positions
+GET http://localhost:3000/positions/open
+
+
+### Get position history (closed positions)
+GET http://localhost:3000/positions/history
+
+
+
+############################################################
+#                    MARKET TICKERS API                    #
+############################################################
+
+### Get all tickers
+GET http://localhost:3000/market/tickers
+
+
+### Get BTC ticker
+GET http://localhost:3000/market/ticker/BTCUSDT
+
+
+### Get ETH ticker
+GET http://localhost:3000/market/ticker/ETHUSDT
+
+
+
+############################################################
+#                     MARKET OHLCV API                     #
+############################################################
+
+### Get BTC 1h candles
+GET http://localhost:3000/market/ohlcv?symbol=BTCUSDT&timeframe=1h
+
+
+### Get ETH 1h candles
+GET http://localhost:3000/market/ohlcv?symbol=ETHUSDT&timeframe=1h
+
+
+### Get last BTC candle
+GET http://localhost:3000/market/last-candle?symbol=BTCUSDT&timeframe=1h
+
+
+### Get last ETH candle
+GET http://localhost:3000/market/last-candle?symbol=ETHUSDT&timeframe=1h
+
+
+
+############################################################
+#                   ACTIVITY LOGS API                      #
+############################################################
+
+### Get all activity logs
+GET http://localhost:3000/activity-logs
+
+
+
+############################################################
+#                        REPORTS API                       #
+############################################################
+
+### Get all reports
+GET http://localhost:3000/reports
+
+
+### Get report by ID
+GET http://localhost:3000/reports/1
