@@ -2,7 +2,7 @@
 #                       ACCOUNT API                        #
 ############################################################
 
-### Get account balance
+### Get account balance (legacy USDT only)
 GET http://localhost:3000/account/balance
 
 ### Get account equity
@@ -11,55 +11,114 @@ GET http://localhost:3000/account/equity
 ### Get account PNL
 GET http://localhost:3000/account/pnl
 
+### Get multi-asset balances (NEW)
+GET http://localhost:3000/account/balances
+
+### Deposit USDT for testing (NEW)
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 5000
+}
+
+### Deposit BTC for testing (NEW)
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "BTC",
+  "amount": 0.1
+}
+
+### Withdraw USDT (NEW)
+POST http://localhost:3000/account/withdraw
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000
+}
+
 
 
 ############################################################
 #                       ORDERS API                         #
 ############################################################
 
-### Get all orders
+### Get all orders (history)
 GET http://localhost:3000/orders
+
+### Get open orders only (NEW)
+GET http://localhost:3000/orders/open
+
+### Get order by ID
+GET http://localhost:3000/orders/ORDER_ID_HERE
+
+### Cancel order (NEW)
+DELETE http://localhost:3000/orders/ORDER_ID_HERE
 
 ### Get portfolio (initial state)
 GET http://localhost:3000/portfolio
 
-### Create BUY order (open BTC position)
+### Create MARKET BUY order (opens LONG position)
 POST http://localhost:3000/orders
 Content-Type: application/json
 
 {
   "symbol": "BTCUSDT",
   "side": "BUY",
+  "type": "MARKET",
   "quantity": 0.01
 }
 
-### Check portfolio after BUY
-GET http://localhost:3000/portfolio
+### Create LIMIT BUY order at lower price (NEW)
+POST http://localhost:3000/orders
+Content-Type: application/json
 
-### Check account after BUY
-GET http://localhost:3000/account/balance
+{
+  "symbol": "BTCUSDT",
+  "side": "BUY",
+  "type": "LIMIT",
+  "quantity": 0.02,
+  "price": 64000
+}
 
-### Create SELL order (close BTC position)
+### Create LIMIT SELL order at higher price (NEW)
 POST http://localhost:3000/orders
 Content-Type: application/json
 
 {
   "symbol": "BTCUSDT",
   "side": "SELL",
+  "type": "LIMIT",
+  "quantity": 0.02,
+  "price": 66000
+}
+
+### Create MARKET SELL order (closes LONG position)
+POST http://localhost:3000/orders
+Content-Type: application/json
+
+{
+  "symbol": "BTCUSDT",
+  "side": "SELL",
+  "type": "MARKET",
   "quantity": 0.01
 }
 
-### Check portfolio after SELL
+### Check portfolio after orders
 GET http://localhost:3000/portfolio
 
-### Check account after SELL
+### Check account after orders
 GET http://localhost:3000/account/balance
 
 ### Check account PNL
 GET http://localhost:3000/account/pnl
 
-### Get all orders again
-GET http://localhost:3000/orders
+### Check balances after orders (NEW)
+GET http://localhost:3000/account/balances
 
 
 
@@ -76,6 +135,21 @@ GET http://localhost:3000/positions/history
 
 
 ############################################################
+#                       TRADES API (NEW)                   #
+############################################################
+
+### Get all trades (history)
+GET http://localhost:3000/trades
+
+### Get trades for specific symbol
+GET http://localhost:3000/trades?symbol=BTCUSDT
+
+### Get trades by order ID
+GET http://localhost:3000/trades/order/ORDER_ID_HERE
+
+
+
+############################################################
 #                    MARKET TICKERS API                    #
 ############################################################
 
@@ -88,6 +162,12 @@ GET http://localhost:3000/market/ticker/BTCUSDT
 ### Get ETH ticker
 GET http://localhost:3000/market/ticker/ETHUSDT
 
+### Get SOL ticker
+GET http://localhost:3000/market/ticker/SOLUSDT
+
+### Get BNB ticker
+GET http://localhost:3000/market/ticker/BNBUSDT
+
 
 
 ############################################################
@@ -96,6 +176,12 @@ GET http://localhost:3000/market/ticker/ETHUSDT
 
 ### Get BTC 1h candles
 GET http://localhost:3000/market/ohlcv?symbol=BTCUSDT&timeframe=1h
+
+### Get BTC 4h candles (NEW)
+GET http://localhost:3000/market/ohlcv?symbol=BTCUSDT&timeframe=4h
+
+### Get BTC 1d candles (NEW)
+GET http://localhost:3000/market/ohlcv?symbol=BTCUSDT&timeframe=1d
 
 ### Get ETH 1h candles
 GET http://localhost:3000/market/ohlcv?symbol=ETHUSDT&timeframe=1h
@@ -124,6 +210,12 @@ GET http://localhost:3000/candles?symbol=BTCUSDT&interval=15m
 ### Get BTC 1h candles (aggregated by engine)
 GET http://localhost:3000/candles?symbol=BTCUSDT&interval=1h
 
+### Get BTC 4h candles (NEW - requires aggregation)
+GET http://localhost:3000/candles?symbol=BTCUSDT&interval=4h
+
+### Get BTC 1d candles (NEW - requires aggregation)
+GET http://localhost:3000/candles?symbol=BTCUSDT&interval=1d
+
 
 
 ############################################################
@@ -138,6 +230,9 @@ GET http://localhost:3000/market/orderbook?symbol=BTCUSDT&depth=10
 
 ### Get ETH orderbook depth=20
 GET http://localhost:3000/market/orderbook?symbol=ETHUSDT
+
+### Get SOL orderbook depth=15
+GET http://localhost:3000/market/orderbook?symbol=SOLUSDT&depth=15
 
 
 
@@ -157,5 +252,27 @@ GET http://localhost:3000/activity-logs
 ### Get all reports
 GET http://localhost:3000/reports
 
-### Get report by ID
-GET http://localhost:3000/reports/1
+### Get report by ID (replace ID with actual)
+GET http://localhost:3000/reports/YOUR_REPORT_ID_HERE
+
+
+
+############################################################
+#                   WEBSOCKET TEST (Manual)                #
+############################################################
+
+### WebSocket connection (use wscat or similar tool)
+# Connect to: ws://localhost:3000
+# 
+# Subscribe to depth:
+# {"type":"SUBSCRIBE_DEPTH","symbol":"BTCUSDT"}
+#
+# Unsubscribe from depth:
+# {"type":"UNSUBSCRIBE_DEPTH","symbol":"BTCUSDT"}
+#
+# You will receive:
+# - TICKER_UPDATE (every 500ms)
+# - DEPTH_UPDATE (every 1 second after subscription)
+# - ORDER_CREATED / ORDER_FILLED / ORDER_CANCELLED
+# - POSITION_OPENED / POSITION_CLOSED / POSITION_UPDATED
+# - TRADE_EXECUTED
