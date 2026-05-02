@@ -10,6 +10,7 @@ import { accountRoutes } from "./routes/accountRoutes"
 import { candleRoutes } from "./routes/candleRoutes"
 import { marketDataStore } from "./store/marketDataStore"
 import { generateMockCandles } from "./utils/mockMarketData"
+import { orderBookRoutes } from "./routes/orderBookRoutes"
 
 const app = Fastify({ logger: true })
 
@@ -19,6 +20,7 @@ app.register(orderRoutes)
 app.register(portfolioRoutes)
 app.register(accountRoutes)
 app.register(candleRoutes)
+app.register(orderBookRoutes)
 
 app.get("/", async () => ({ status: "PhantomExchange running" }))
 
