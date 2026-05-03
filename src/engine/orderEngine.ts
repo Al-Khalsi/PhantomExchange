@@ -1,6 +1,5 @@
 import { marketStore } from "../store/marketStore";
 import { orderStore, OrderSide, OrderType } from "../store/orderStore";
-import { portfolioStore } from "../store/portfolioStore";
 import { eventBus } from "../utils/eventBus";
 import { matchOrder } from "./matchingEngine";
 
@@ -9,9 +8,10 @@ export function placeOrder(
   side: OrderSide,
   type: OrderType,
   quantity: number,
-  price?: number // Required for LIMIT orders
+  price?: number,
+  leverage: number = 10,
+  reduceOnly: boolean = false
 ) {
-  // 1) Input Validation
   if (!symbol || typeof symbol !== "string") {
     const err = { type: "order:rejected", reason: "Invalid symbol", symbol };
     eventBus.emit("order:rejected", err);
@@ -25,7 +25,7 @@ export function placeOrder(
   }
 
   if (!["MARKET", "LIMIT"].includes(type)) {
-const err = { type: "order:rejected", reason: "Invalid order type", invalidType: type };
+    const err = { type: "order:rejected", reason: "Invalid order type", invalidType: type };
     eventBus.emit("order:rejected", err);
     throw new Error("Invalid order type");
   }
@@ -36,13 +36,18 @@ const err = { type: "order:rejected", reason: "Invalid order type", invalidType:
     throw new Error("Invalid quantity");
   }
 
+  if (leverage < 1 || leverage > 100) {
+    const err = { type: "order:rejected", reason: "Leverage must be between 1 and 100", leverage };
+    eventBus.emit("order:rejected", err);
+    throw new Error("Leverage must be between 1 and 100");
+  }
+
   if (type === "LIMIT" && (!price || price <= 0)) {
     const err = { type: "order:rejected", reason: "Invalid limit price", price };
     eventBus.emit("order:rejected", err);
     throw new Error("Invalid limit price");
   }
 
-  // 2) For MARKET orders, get current market price
   let orderPrice: number;
   if (type === "MARKET") {
     const ticker = marketStore.get(symbol);
@@ -56,31 +61,21 @@ const err = { type: "order:rejected", reason: "Invalid order type", invalidType:
     orderPrice = price!;
   }
 
-  // 3) Create Order
   const order = orderStore.create({
     symbol,
     side,
     type,
     quantity,
     price: orderPrice,
+    leverage,
+    reduceOnly
   });
 
   eventBus.emit("order:created", order);
 
-  // 4) Match the order against existing orders
   matchOrder(order);
 
-  // 5) Return Final Order Object
   return order;
-}
-
-// Keep legacy function for backward compatibility
-export function executeMarketOrder(
-  symbol: string,
-  side: OrderSide,
-  quantity: number
-) {
-  return placeOrder(symbol, side, "MARKET", quantity);
 }
 
 export function cancelOrder(orderId: string) {

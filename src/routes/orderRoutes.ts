@@ -4,7 +4,6 @@ import { OrderSide, OrderType } from "../store/orderStore";
 import { orderStore } from "../store/orderStore";
 
 export async function orderRoutes(app: FastifyInstance) {
-  // Create order (MARKET or LIMIT)
   app.post("/orders", async (req, reply) => {
     const body = req.body as {
       symbol: string;
@@ -12,6 +11,8 @@ export async function orderRoutes(app: FastifyInstance) {
       type: OrderType;
       quantity: number;
       price?: number;
+      leverage?: number;
+      reduceOnly?: boolean;
     };
 
     if (!body.symbol || !body.side || !body.type || !body.quantity) {
@@ -22,13 +23,19 @@ export async function orderRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "price is required for LIMIT orders" });
     }
 
+    if (body.leverage && (body.leverage < 1 || body.leverage > 100)) {
+      return reply.status(400).send({ error: "Leverage must be between 1 and 100" });
+    }
+
     try {
       const order = placeOrder(
         body.symbol.toUpperCase(),
         body.side,
         body.type,
         body.quantity,
-        body.price
+        body.price,
+        body.leverage || 10,
+        body.reduceOnly || false
       );
 
       return order;
@@ -37,17 +44,14 @@ export async function orderRoutes(app: FastifyInstance) {
     }
   });
 
-  // Get all orders (history)
   app.get("/orders", async () => {
     return orderStore.getAll();
   });
 
-  // Get open orders only
   app.get("/orders/open", async () => {
     return { orders: getOpenOrders() };
   });
 
-  // Get order by ID
   app.get("/orders/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     const order = getOrderById(id);
@@ -59,7 +63,6 @@ export async function orderRoutes(app: FastifyInstance) {
     return order;
   });
 
-  // Cancel order
   app.delete("/orders/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     

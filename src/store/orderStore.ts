@@ -9,16 +9,18 @@ export interface Order {
   symbol: string;
   side: OrderSide;
   type: OrderType;
-  price: number;           // For LIMIT orders, this is the limit price. For MARKET, this is the execution price.
-  quantity: number;        // Original requested quantity
-  filledQuantity: number;  // How much has been filled so far
+  price: number;
+  quantity: number;
+  filledQuantity: number;
   timestamp: string;
   status: OrderStatus;
+  leverage: number;
+  reduceOnly: boolean;
 }
 
 class OrderStore {
-  private orders: Map<string, Order> = new Map(); // id -> Order
-  private openOrders: Map<string, Order> = new Map(); // id -> Order (only OPEN status)
+  private orders: Map<string, Order> = new Map();
+  private openOrders: Map<string, Order> = new Map();
 
   create(order: Omit<Order, "id" | "timestamp" | "filledQuantity" | "status">): Order {
     const newOrder: Order = {
@@ -65,7 +67,7 @@ class OrderStore {
     if (order.status === "OPEN" || order.status === "PARTIALLY_FILLED") {
       this.openOrders.set(order.id, order);
     } else {
-      this.openOrders.delete(order.id); // Remove from open orders if FILLED or CANCELLED
+      this.openOrders.delete(order.id);
     }
   }
 

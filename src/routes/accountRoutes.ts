@@ -3,6 +3,9 @@ import { accountStore } from '../store/accountStore'
 import { portfolioStore } from '../store/portfolioStore'
 import { balanceStore } from '../store/balanceStore'
 
+let defaultLeverage = 10;
+const maxLeverage = 100;
+
 export async function accountRoutes(fastify: FastifyInstance) {
 
   fastify.get('/account/balance', async () => {
@@ -25,14 +28,34 @@ export async function accountRoutes(fastify: FastifyInstance) {
     }
   })
 
-  // Get all multi-asset balances
   fastify.get('/account/balances', async () => {
     return {
       balances: balanceStore.getAll()
     }
   })
 
-  // Deposit funds for testing
+  fastify.get('/account/leverage', async () => {
+    return {
+      defaultLeverage,
+      maxLeverage
+    }
+  })
+
+  fastify.post('/account/leverage', async (request, reply) => {
+    const { leverage } = request.body as { leverage: number };
+    
+    if (leverage < 1 || leverage > maxLeverage) {
+      return reply.status(400).send({ error: `Leverage must be between 1 and ${maxLeverage}` });
+    }
+    
+    defaultLeverage = leverage;
+    return { 
+      defaultLeverage, 
+      maxLeverage,
+      message: "Default leverage updated for futures trading" 
+    };
+  })
+
   fastify.post('/account/deposit', async (request, reply) => {
     const { asset, amount } = request.body as { asset: string; amount: number }
     
@@ -40,33 +63,20 @@ export async function accountRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid asset or amount' })
     }
     
-    // Add free balance
-    const currentTotal = balanceStore.getTotal(asset as any)
-    const currentFree = balanceStore.getFree(asset as any)
-    const currentLocked = balanceStore.getLocked(asset as any)
-    
-    // Simple way: unlock then add then lock back? No, just add to free
-    // Workaround: transfer from nowhere (just add)
-    // Since transfer needs from/to, we directly manipulate via lock/unlock hack
-    if (currentLocked > 0) {
-      // If there's locked balance, we need to add to free separately
-      // For simplicity, we add by unlocking a dummy amount then relocking? Too complex
-      // Better: add a direct method to balanceStore
-      // But for now, use transfer with from=to
-      balanceStore.transfer(asset as any, asset as any, 0, amount)
-    } else {
-      balanceStore.transfer(asset as any, asset as any, 0, amount)
+    if (asset !== "USDT") {
+      return reply.status(400).send({ error: 'Only USDT deposits are supported for futures' });
     }
+    
+    balanceStore.addFree("USDT", amount);
     
     return { 
       success: true, 
       asset, 
       amount,
-      newBalance: balanceStore.getTotal(asset as any)
+      newBalance: balanceStore.getTotal("USDT")
     }
   })
 
-  // Withdraw funds for testing
   fastify.post('/account/withdraw', async (request, reply) => {
     const { asset, amount } = request.body as { asset: string; amount: number }
     
@@ -74,23 +84,25 @@ export async function accountRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid asset or amount' })
     }
     
-    const currentFree = balanceStore.getFree(asset as any)
+    if (asset !== "USDT") {
+      return reply.status(400).send({ error: 'Only USDT withdrawals are supported for futures' });
+    }
+    
+    const currentFree = balanceStore.getFree("USDT")
     
     if (currentFree < amount) {
       return reply.status(400).send({ error: 'Insufficient balance' })
     }
     
-    // Lock then commit (effectively remove)
-    if (balanceStore.lock(asset as any, amount)) {
-      balanceStore.commitLock(asset as any, amount)
-      return { 
-        success: true, 
-        asset, 
-        amount,
-        newBalance: balanceStore.getTotal(asset as any)
-      }
+    if (!balanceStore.subtractFree("USDT", amount)) {
+      return reply.status(400).send({ error: 'Withdrawal failed' });
     }
     
-    return reply.status(400).send({ error: 'Withdrawal failed' })
+    return { 
+      success: true, 
+      asset, 
+      amount,
+      newBalance: balanceStore.getTotal("USDT")
+    }
   })
 }

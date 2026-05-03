@@ -30,26 +30,27 @@ class TradeStore {
 
 export const tradeStore = new TradeStore();
 
-// Match a new order against existing open orders
 export function matchOrder(newOrder: Order): void {
   if (newOrder.status !== "OPEN") return;
   
-  // Lock balance before matching
   const symbol = newOrder.symbol;
-  const baseAsset = symbol.replace("USDT", "");
-  if (newOrder.side === "BUY") {
-    if (!balanceStore.lock("USDT", newOrder.price * newOrder.quantity)) {
-      newOrder.status = "CANCELLED";
-      orderStore.updateOrder(newOrder);
-      eventBus.emit("order:rejected", { orderId: newOrder.id, reason: "Insufficient balance" });
-      return;
-    }
-  } else {
-    if (!balanceStore.lock(baseAsset as any, newOrder.quantity)) {
-      newOrder.status = "CANCELLED";
-      orderStore.updateOrder(newOrder);
-      eventBus.emit("order:rejected", { orderId: newOrder.id, reason: "Insufficient balance" });
-      return;
+  
+  // For futures: lock margin based on leverage
+  if (newOrder.side === "BUY" || newOrder.side === "SELL") {
+    const position = portfolioStore.getOpenPosition(symbol);
+    const isIncreasingPosition = 
+      (newOrder.side === "BUY" && (!position || position.side === "LONG")) ||
+      (newOrder.side === "SELL" && (!position || position.side === "SHORT"));
+    
+    if (isIncreasingPosition && !newOrder.reduceOnly) {
+      const marginRequired = (newOrder.price * newOrder.quantity) / newOrder.leverage;
+      if (!balanceStore.lock("USDT", marginRequired)) {
+        newOrder.status = "CANCELLED";
+        orderStore.updateOrder(newOrder);
+        eventBus.emit("order:rejected", { orderId: newOrder.id, reason: "Insufficient collateral" });
+        return;
+      }
+      (newOrder as any).marginLocked = marginRequired;
     }
   }
   
@@ -60,20 +61,16 @@ export function matchOrder(newOrder: Order): void {
   }
 }
 
-function unlockRemaining(order: Order, price: number): void {
-  const symbol = order.symbol;
-  const baseAsset = symbol.replace("USDT", "");
+function unlockRemaining(order: Order): void {
   const remainingQty = order.quantity - order.filledQuantity;
   if (remainingQty <= 0) return;
   
-  if (order.side === "BUY") {
-    balanceStore.unlock("USDT", order.price * remainingQty);
-  } else {
-    balanceStore.unlock(baseAsset as any, remainingQty);
+  if ((order as any).marginLocked) {
+    const marginToUnlock = ((order as any).marginLocked / order.quantity) * remainingQty;
+    balanceStore.unlock("USDT", marginToUnlock);
   }
 }
 
-// Execute MARKET order immediately at best available price
 function executeMarketOrder(marketOrder: Order): void {
   const symbol = marketOrder.symbol;
   const isBuy = marketOrder.side === "BUY";
@@ -108,13 +105,12 @@ function executeMarketOrder(marketOrder: Order): void {
     marketOrder.status = "PARTIALLY_FILLED";
   } else {
     marketOrder.status = "CANCELLED";
-    unlockRemaining(marketOrder, 0);
+    unlockRemaining(marketOrder);
   }
   
   orderStore.updateOrder(marketOrder);
 }
 
-// Match LIMIT order against existing open orders
 function matchLimitOrder(limitOrder: Order): void {
   const symbol = limitOrder.symbol;
   const isBuy = limitOrder.side === "BUY";
@@ -154,62 +150,119 @@ function matchLimitOrder(limitOrder: Order): void {
   orderStore.updateOrder(limitOrder);
 }
 
-// Execute a single trade between two orders
 function executeTrade(buyerOrder: Order, sellerOrder: Order, price: number, quantity: number): void {
   const isBuyerFirst = buyerOrder.side === "BUY";
   const buyOrder = isBuyerFirst ? buyerOrder : sellerOrder;
   const sellOrder = isBuyerFirst ? sellerOrder : buyerOrder;
   
   const symbol = buyOrder.symbol;
-  const baseAsset = symbol.replace("USDT", "");
   const quoteAmount = price * quantity;
-  const fee = quoteAmount * 0.001; // 0.1% fee
+  const fee = quoteAmount * 0.001;
   
-  // Transfer assets: buyer pays USDT, seller pays base asset
-  balanceStore.transfer(baseAsset as any, baseAsset as any, quantity, quantity);
-  balanceStore.transfer("USDT", "USDT", quoteAmount, quoteAmount - fee);
+  if (!balanceStore.subtractFree("USDT", fee * 2)) {
+    console.error("Insufficient balance for trading fee");
+    return;
+  }
   
-  // Update filled quantities
   buyOrder.filledQuantity += quantity;
   sellOrder.filledQuantity += quantity;
   
-  // Update order statuses
   buyOrder.status = buyOrder.filledQuantity >= buyOrder.quantity ? "FILLED" : "PARTIALLY_FILLED";
   sellOrder.status = sellOrder.filledQuantity >= sellOrder.quantity ? "FILLED" : "PARTIALLY_FILLED";
   
   orderStore.updateOrder(buyOrder);
   orderStore.updateOrder(sellOrder);
   
-  // Update portfolio (open/close positions)
-  const position = portfolioStore.getOpenPosition(symbol);
+  let position = portfolioStore.getOpenPosition(symbol);
   
+  // Handle BUY side (LONG)
   if (buyOrder.filledQuantity > 0) {
+    const buyLeverage = (buyOrder as any).leverage || 10;
+    
     if (!position) {
-      portfolioStore.openPosition(symbol, "LONG", price, quantity);
+      portfolioStore.openPosition(symbol, "LONG", price, quantity, buyLeverage);
     } else if (position.side === "LONG") {
       const newSize = position.size + quantity;
       const newAvgPrice = (position.entryPrice * position.size + price * quantity) / newSize;
+      const newMargin = (newAvgPrice * newSize) / position.leverage;
+      
+      balanceStore.unlock("USDT", position.marginUsed);
+      if (!balanceStore.lock("USDT", newMargin)) {
+        console.error("Failed to lock margin for position increase");
+      }
+      
       position.size = newSize;
       position.entryPrice = newAvgPrice;
+      position.marginUsed = newMargin;
+      position.liquidationPrice = portfolioStore.calculateLiquidationPrice(
+        "LONG", newAvgPrice, position.leverage, newMargin
+      );
       position.lastUpdate = new Date().toISOString();
+    } else if (position.side === "SHORT") {
+      if (quantity >= position.size) {
+        portfolioStore.closePosition(symbol, price);
+        if (quantity > position.size) {
+          portfolioStore.openPosition(symbol, "LONG", price, quantity - position.size, buyLeverage);
+        }
+      } else {
+        const pnl = (position.entryPrice - price) * quantity;
+        position.size -= quantity;
+        position.realizedPnl += pnl;
+        
+        const marginToUnlock = (position.marginUsed / (position.size + quantity)) * quantity;
+        balanceStore.unlock("USDT", marginToUnlock);
+        position.marginUsed -= marginToUnlock;
+        position.lastUpdate = new Date().toISOString();
+        balanceStore.addFree("USDT", pnl);
+      }
     }
   }
   
-  if (sellOrder.filledQuantity > 0 && position && position.status === "OPEN") {
-    if (quantity >= position.size) {
-      portfolioStore.closePosition(symbol, price);
-    } else {
-      const pnl = (price - position.entryPrice) * quantity;
-      position.size -= quantity;
-      position.realizedPnl += pnl;
-      position.lastUpdate = new Date().toISOString();
+  // Handle SELL side (SHORT)
+  if (sellOrder.filledQuantity > 0) {
+    const sellLeverage = (sellOrder as any).leverage || 10;
+    const posAfterBuy = portfolioStore.getOpenPosition(symbol);
+    
+    if (!posAfterBuy) {
+      portfolioStore.openPosition(symbol, "SHORT", price, quantity, sellLeverage);
+    } else if (posAfterBuy.side === "SHORT") {
+      const newSize = posAfterBuy.size + quantity;
+      const newAvgPrice = (posAfterBuy.entryPrice * posAfterBuy.size + price * quantity) / newSize;
+      const newMargin = (newAvgPrice * newSize) / posAfterBuy.leverage;
+      
+      balanceStore.unlock("USDT", posAfterBuy.marginUsed);
+      balanceStore.lock("USDT", newMargin);
+      
+      posAfterBuy.size = newSize;
+      posAfterBuy.entryPrice = newAvgPrice;
+      posAfterBuy.marginUsed = newMargin;
+      posAfterBuy.liquidationPrice = portfolioStore.calculateLiquidationPrice(
+        "SHORT", newAvgPrice, posAfterBuy.leverage, newMargin
+      );
+      posAfterBuy.lastUpdate = new Date().toISOString();
+    } else if (posAfterBuy.side === "LONG") {
+      if (quantity >= posAfterBuy.size) {
+        portfolioStore.closePosition(symbol, price);
+        if (quantity > posAfterBuy.size) {
+          portfolioStore.openPosition(symbol, "SHORT", price, quantity - posAfterBuy.size, sellLeverage);
+        }
+      } else {
+        const pnl = (price - posAfterBuy.entryPrice) * quantity;
+        posAfterBuy.size -= quantity;
+        posAfterBuy.realizedPnl += pnl;
+        
+        const marginToUnlock = (posAfterBuy.marginUsed / (posAfterBuy.size + quantity)) * quantity;
+        balanceStore.unlock("USDT", marginToUnlock);
+        posAfterBuy.marginUsed -= marginToUnlock;
+        posAfterBuy.lastUpdate = new Date().toISOString();
+        balanceStore.addFree("USDT", pnl);
+      }
     }
   }
   
-  // Create trade record
   const trade: Trade = {
     id: `${buyOrder.id}-${sellOrder.id}-${Date.now()}`,
-    symbol: buyOrder.symbol,
+    symbol,
     price,
     quantity,
     quoteQty: quoteAmount,
@@ -221,8 +274,6 @@ function executeTrade(buyerOrder: Order, sellerOrder: Order, price: number, quan
   };
   
   tradeStore.add(trade);
-  
-  // Emit events
   eventBus.emit("trade:executed", trade);
   eventBus.emit("order:updated", { orderId: buyOrder.id, status: buyOrder.status });
   eventBus.emit("order:updated", { orderId: sellOrder.id, status: sellOrder.status });
