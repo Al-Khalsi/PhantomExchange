@@ -40,4 +40,4 @@ temp/
 .pnpm-store/
 
 tree.txt
-project_dump_ts.txt
+dump.txt
