@@ -3,6 +3,8 @@ export interface Ticker {
   price: number;
   change24h: number;
   volume24h: number;
+  high24h: number;
+  low24h: number;
 }
 
 const market: Record<string, Ticker> = {};
@@ -18,5 +20,9 @@ export const marketStore = {
 
   getAll() {
     return Object.values(market);
+  },
+
+  getAllSymbols(): string[] {
+    return Object.keys(market);
   }
 };

@@ -15,6 +15,7 @@ import { tradeRoutes } from "./routes/tradeRoutes";
 import positionRoutes from "./routes/positionRoutes";
 import activityLogRoutes from "./routes/activityLogRoutes";
 import reportRoutes from "./routes/reportRoutes";
+import { SYMBOLS } from "./config/symbols";
 
 const app = Fastify({ logger: true });
 
@@ -30,16 +31,25 @@ app.register(positionRoutes);
 app.register(activityLogRoutes);
 app.register(reportRoutes);
 
-app.get("/", async () => ({ status: "PhantomExchange running - Futures Mode" }));
+app.get("/", async () => ({ 
+  status: "PhantomExchange running - Futures Mode",
+  symbols: SYMBOLS.length,
+  leverage: "1x - 100x"
+}));
 
 // Start server
 const start = async () => {
   try {
-    // Inject mock 1h OHLCV
-    marketDataStore.set("BTCUSDT", "1h", generateMockCandles(62000, 200));
-    marketDataStore.set("ETHUSDT", "1h", generateMockCandles(3200, 200));
-    marketDataStore.set("SOLUSDT", "1h", generateMockCandles(140, 200));
-    marketDataStore.set("BNBUSDT", "1h", generateMockCandles(600, 200));
+    // Inject mock 1h OHLCV for all symbols
+    console.log(`📊 Loading historical data for ${SYMBOLS.length} symbols...`);
+    
+    for (const config of SYMBOLS) {
+      marketDataStore.set(
+        config.symbol, 
+        "1h", 
+        generateMockCandles(config.basePrice, 200)
+      );
+    }
 
     // Listen
     const server = await app.listen({
@@ -50,7 +60,7 @@ const start = async () => {
     // Setup event listeners
     setupEventListeners();
 
-    // Start price engine (L1 tick data)
+    // Start price engine (L1 tick data for 50 pairs)
     startPriceEngine();
 
     // Start candle engine (1m + aggregation)
@@ -59,7 +69,7 @@ const start = async () => {
     // WebSocket system
     setupWebSocket(app.server);
 
-    app.log.info("PhantomExchange Futures started on port 3000");
+    app.log.info(`PhantomExchange Futures started on port 3000`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

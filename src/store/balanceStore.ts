@@ -1,21 +1,46 @@
-export type Asset = "USDT" | "BTC" | "ETH" | "SOL" | "BNB" | "XRP";
+import { getAllSymbols } from "../config/symbols";
+
+export type Asset = 
+  | "USDT" 
+  | "BTC" | "ETH" | "BNB" | "SOL" | "XRP"
+  | "ADA" | "AVAX" | "DOT" | "MATIC" | "ATOM"
+  | "NEAR" | "ALGO" | "VET" | "EGLD" | "FTM"
+  | "UNI" | "AAVE" | "LINK" | "CRV" | "CAKE"
+  | "SUSHI" | "COMP" | "MKR" | "SNX" | "LDO"
+  | "DOGE" | "SHIB" | "PEPE" | "FLOKI" | "BONK" | "WIF"
+  | "SAND" | "MANA" | "AXS" | "GALA" | "ENJ" | "ILV"
+  | "ARB" | "OP" | "METIS" | "BOBA"
+  | "FIL" | "AR" | "BLZ"
+  | "PYTH" | "API3"
+  | "FET" | "AGIX" | "OCEAN"
+  | "RNDR" | "GRT" | "CHZ" | "1INCH" | "KAVA" | "ZIL";
 
 interface Balance {
-  free: number;      // Available as collateral
-  locked: number;    // Frozen as initial margin for open positions/orders
+  free: number;
+  locked: number;
 }
 
 class BalanceStore {
   private balances: Map<Asset, Balance> = new Map();
 
   constructor() {
-    // Start with only USDT as collateral (typical for futures)
+    // Initialize USDT as collateral
     this.balances.set("USDT", { free: 10000, locked: 0 });
-    this.balances.set("BTC", { free: 0, locked: 0 });
-    this.balances.set("ETH", { free: 0, locked: 0 });
-    this.balances.set("SOL", { free: 0, locked: 0 });
-    this.balances.set("BNB", { free: 0, locked: 0 });
-    this.balances.set("XRP", { free: 0, locked: 0 });
+    
+    // Initialize all base assets with 0 balance (futures only needs USDT)
+    const allAssets = this.getAllAssets();
+    for (const asset of allAssets) {
+      if (asset !== "USDT" && !this.balances.has(asset as Asset)) {
+        this.balances.set(asset as Asset, { free: 0, locked: 0 });
+      }
+    }
+  }
+
+  private getAllAssets(): string[] {
+    const symbols = getAllSymbols();
+    const assets = symbols.map(s => s.replace("USDT", ""));
+    // Add all unique assets
+    return [...new Set(["USDT", ...assets])];
   }
 
   getFree(asset: Asset): number {
@@ -31,7 +56,6 @@ class BalanceStore {
     return b ? b.free + b.locked : 0;
   }
 
-  // Lock collateral when opening position or placing order
   lock(asset: Asset, amount: number): boolean {
     const balance = this.balances.get(asset);
     if (!balance || balance.free < amount) return false;
@@ -40,7 +64,6 @@ class BalanceStore {
     return true;
   }
 
-  // Unlock collateral when order cancelled / position closed
   unlock(asset: Asset, amount: number): void {
     const balance = this.balances.get(asset);
     if (!balance) return;
@@ -49,8 +72,6 @@ class BalanceStore {
     balance.locked -= unlockAmount;
   }
 
-  // For unrealized PnL: increase or reduce free collateral directly
-  // (used in PnL settlement)
   addFree(asset: Asset, amount: number): void {
     const balance = this.balances.get(asset);
     if (balance) balance.free += amount;
@@ -63,7 +84,6 @@ class BalanceStore {
     return true;
   }
 
-  // Commit locked margin after position is fully closed
   commitLock(asset: Asset, amount: number): void {
     const balance = this.balances.get(asset);
     if (balance) {
@@ -72,8 +92,8 @@ class BalanceStore {
     }
   }
 
-  getAll(): Record<Asset, { free: number; locked: number; total: number }> {
-    const result = {} as Record<Asset, any>;
+  getAll(): Record<string, { free: number; locked: number; total: number }> {
+    const result: Record<string, any> = {};
     for (const [asset, balance] of this.balances) {
       result[asset] = {
         free: balance.free,
