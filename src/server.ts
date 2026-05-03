@@ -22,21 +22,23 @@ import { NETWORKS } from "./config/networks";
 
 const app = Fastify({ logger: true });
 
-// Register all routes
+// Register all routes (order matters for error handling)
 app.register(marketRoutes);
 app.register(orderRoutes);
 app.register(portfolioRoutes);
-app.register(accountRoutes);
+app.register(accountRoutes);      // Contains unified deposit/withdraw
 app.register(candleRoutes);
 app.register(orderBookRoutes);
 app.register(tradeRoutes);
 app.register(positionRoutes);
 app.register(activityLogRoutes);
 app.register(reportRoutes);
-app.register(networkRoutes);
+app.register(networkRoutes);       // Network info only (no /account conflicts)
 
+// Health check endpoint
 app.get("/", async () => ({ 
-  status: "PhantomExchange running - Futures Mode",
+  status: "PhantomExchange Running - Futures Mode",
+  version: "1.0.0",
   symbols: SYMBOLS.length,
   networks: NETWORKS.filter(n => n.isActive).length,
   leverage: "1x - 100x"
@@ -45,7 +47,7 @@ app.get("/", async () => ({
 // Start server
 const start = async () => {
   try {
-    // Initialize network balances
+    // Initialize network balances with default values
     networkBalanceStore.initializeDefaultBalances();
     console.log("💰 Network balances initialized");
 
@@ -60,25 +62,25 @@ const start = async () => {
       );
     }
 
-    // Listen
+    // Start HTTP server
     const server = await app.listen({
       port: 3000,
       host: "0.0.0.0"
     });
 
-    // Setup event listeners
+    // Setup event listeners for logging and realtime updates
     setupEventListeners();
 
-    // Start price engine (L1 tick data for 50 pairs)
+    // Start price engine (L1 tick data for all pairs)
     startPriceEngine();
 
-    // Start candle engine (1m + aggregation)
+    // Start candle engine (1m + aggregation to 5m, 15m, 1h)
     startCandleEngine();
 
-    // WebSocket system
+    // Setup WebSocket server for realtime data
     setupWebSocket(app.server);
 
-    app.log.info(`PhantomExchange Futures started on port 3000`);
+    app.log.info(`🚀 PhantomExchange Futures started on port 3000`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
