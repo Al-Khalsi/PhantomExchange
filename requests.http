@@ -252,6 +252,129 @@ GET http://localhost:3000/candles?symbol=BTCUSDT&interval=15m
 GET http://localhost:3000/candles?symbol=BTCUSDT&interval=1h
 
 
+############################################################
+#                    NETWORK MANAGEMENT API                #
+############################################################
+
+### Get all available blockchain networks
+GET http://localhost:3000/networks
+
+### Get assets for ERC20 network
+GET http://localhost:3000/networks/erc20/assets
+
+### Get assets for BEP20 network
+GET http://localhost:3000/networks/bep20/assets
+
+### Get assets for TRC20 network
+GET http://localhost:3000/networks/trc20/assets
+
+### Get assets for Solana network
+GET http://localhost:3000/networks/solana/assets
+
+### Get all network balances (grouped by network)
+GET http://localhost:3000/account/network-balances
+
+### Get USDT balance across all networks
+GET http://localhost:3000/account/network-balances/USDT
+
+### Get USDC balance across all networks
+GET http://localhost:3000/account/network-balances/USDC
+
+### Deposit USDT on ERC20
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "networkId": "erc20",
+  "amount": 1000
+}
+
+### Deposit USDT on BEP20
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "networkId": "bep20",
+  "amount": 2000
+}
+
+### Deposit BNB on BEP20
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "BNB",
+  "networkId": "bep20",
+  "amount": 5
+}
+
+### Deposit SOL on Solana
+POST http://localhost:3000/account/deposit
+Content-Type: application/json
+
+{
+  "asset": "SOL",
+  "networkId": "solana",
+  "amount": 10
+}
+
+### Withdraw USDT from ERC20
+POST http://localhost:3000/account/withdraw
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "networkId": "erc20",
+  "amount": 100,
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2"
+}
+
+### Withdraw BNB from BEP20
+POST http://localhost:3000/account/withdraw
+Content-Type: application/json
+
+{
+  "asset": "BNB",
+  "networkId": "bep20",
+  "amount": 1,
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2"
+}
+
+### Transfer USDT from ERC20 to BEP20 (internal bridge)
+POST http://localhost:3000/account/transfer-network
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "fromNetwork": "erc20",
+  "toNetwork": "bep20",
+  "amount": 500
+}
+
+### Transfer USDT from BEP20 to TRC20
+POST http://localhost:3000/account/transfer-network
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "fromNetwork": "bep20",
+  "toNetwork": "trc20",
+  "amount": 300
+}
+
+### Transfer SOL from Solana to BEP20 (not supported - will error)
+POST http://localhost:3000/account/transfer-network
+Content-Type: application/json
+
+{
+  "asset": "SOL",
+  "fromNetwork": "solana",
+  "toNetwork": "bep20",
+  "amount": 5
+}
+
 
 ############################################################
 #                   ORDERBOOK (DEPTH) API                  #

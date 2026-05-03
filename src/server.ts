@@ -15,7 +15,10 @@ import { tradeRoutes } from "./routes/tradeRoutes";
 import positionRoutes from "./routes/positionRoutes";
 import activityLogRoutes from "./routes/activityLogRoutes";
 import reportRoutes from "./routes/reportRoutes";
+import { networkRoutes } from "./routes/networkRoutes";
+import { networkBalanceStore } from "./store/networkBalanceStore";
 import { SYMBOLS } from "./config/symbols";
+import { NETWORKS } from "./config/networks";
 
 const app = Fastify({ logger: true });
 
@@ -30,16 +33,22 @@ app.register(tradeRoutes);
 app.register(positionRoutes);
 app.register(activityLogRoutes);
 app.register(reportRoutes);
+app.register(networkRoutes);
 
 app.get("/", async () => ({ 
   status: "PhantomExchange running - Futures Mode",
   symbols: SYMBOLS.length,
+  networks: NETWORKS.filter(n => n.isActive).length,
   leverage: "1x - 100x"
 }));
 
 // Start server
 const start = async () => {
   try {
+    // Initialize network balances
+    networkBalanceStore.initializeDefaultBalances();
+    console.log("💰 Network balances initialized");
+
     // Inject mock 1h OHLCV for all symbols
     console.log(`📊 Loading historical data for ${SYMBOLS.length} symbols...`);
     
