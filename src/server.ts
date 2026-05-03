@@ -12,10 +12,13 @@ import { marketDataStore } from "./store/marketDataStore";
 import { generateMockCandles } from "./utils/mockMarketData";
 import { orderBookRoutes } from "./routes/orderBookRoutes";
 import { tradeRoutes } from "./routes/tradeRoutes";
+import positionRoutes from "./routes/positionRoutes";
+import activityLogRoutes from "./routes/activityLogRoutes";
+import reportRoutes from "./routes/reportRoutes";
 
 const app = Fastify({ logger: true });
 
-// Register routes
+// Register all routes
 app.register(marketRoutes);
 app.register(orderRoutes);
 app.register(portfolioRoutes);
@@ -23,8 +26,11 @@ app.register(accountRoutes);
 app.register(candleRoutes);
 app.register(orderBookRoutes);
 app.register(tradeRoutes);
+app.register(positionRoutes);
+app.register(activityLogRoutes);
+app.register(reportRoutes);
 
-app.get("/", async () => ({ status: "PhantomExchange running" }));
+app.get("/", async () => ({ status: "PhantomExchange running - Futures Mode" }));
 
 // Start server
 const start = async () => {
@@ -32,6 +38,8 @@ const start = async () => {
     // Inject mock 1h OHLCV
     marketDataStore.set("BTCUSDT", "1h", generateMockCandles(62000, 200));
     marketDataStore.set("ETHUSDT", "1h", generateMockCandles(3200, 200));
+    marketDataStore.set("SOLUSDT", "1h", generateMockCandles(140, 200));
+    marketDataStore.set("BNBUSDT", "1h", generateMockCandles(600, 200));
 
     // Listen
     const server = await app.listen({
@@ -51,7 +59,7 @@ const start = async () => {
     // WebSocket system
     setupWebSocket(app.server);
 
-    app.log.info("🚀 PhantomExchange started on port 3000");
+    app.log.info("PhantomExchange Futures started on port 3000");
   } catch (err) {
     app.log.error(err);
     process.exit(1);
