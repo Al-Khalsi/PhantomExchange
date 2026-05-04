@@ -1,5 +1,4 @@
 // api-test-runner.js
-// اجرا کن: node api-test-runner.js
 
 import fs from 'fs';
 import path from 'path';
@@ -73,20 +72,14 @@ const tests = [
     { name: 'GET /market/ticker/BTCUSDT', method: 'GET', url: '/market/ticker/BTCUSDT' },
     { name: 'GET /market/ticker/ETHUSDT', method: 'GET', url: '/market/ticker/ETHUSDT' },
     { name: 'GET /market/ticker/SOLUSDT', method: 'GET', url: '/market/ticker/SOLUSDT' },
-
-    // ==================== OHLCV TESTS ====================
-    { name: 'GET /market/ohlcv?symbol=BTCUSDT&timeframe=1h', method: 'GET', url: '/market/ohlcv?symbol=BTCUSDT&timeframe=1h' },
-    { name: 'GET /market/last-candle?symbol=BTCUSDT&timeframe=1h', method: 'GET', url: '/market/last-candle?symbol=BTCUSDT&timeframe=1h' },
-
-    // ==================== CANDLE TESTS ====================
-    { name: 'GET /candles?symbol=BTCUSDT&interval=1m', method: 'GET', url: '/candles?symbol=BTCUSDT&interval=1m' },
-    { name: 'GET /candles?symbol=BTCUSDT&interval=5m', method: 'GET', url: '/candles?symbol=BTCUSDT&interval=5m' },
-    { name: 'GET /candles?symbol=BTCUSDT&interval=1h', method: 'GET', url: '/candles?symbol=BTCUSDT&interval=1h' },
+    { name: 'GET /market/ticker/BNBUSDT', method: 'GET', url: '/market/ticker/BNBUSDT' },
+    { name: 'GET /market/ticker/XRPUSDT', method: 'GET', url: '/market/ticker/XRPUSDT' },
 
     // ==================== ORDERBOOK TESTS ====================
     { name: 'GET /market/orderbook?symbol=BTCUSDT', method: 'GET', url: '/market/orderbook?symbol=BTCUSDT' },
     { name: 'GET /market/orderbook?symbol=BTCUSDT&depth=10', method: 'GET', url: '/market/orderbook?symbol=BTCUSDT&depth=10' },
     { name: 'GET /market/orderbook?symbol=ETHUSDT', method: 'GET', url: '/market/orderbook?symbol=ETHUSDT' },
+    { name: 'GET /market/orderbook?symbol=SOLUSDT&depth=15', method: 'GET', url: '/market/orderbook?symbol=SOLUSDT&depth=15' },
 
     // ==================== ACTIVITY & REPORTS ====================
     { name: 'GET /activity-logs', method: 'GET', url: '/activity-logs' },
@@ -350,7 +343,7 @@ function generateHtmlReport(results) {
     <div class="container">
         <div class="header">
             <h1>🚀 PhantomExchange</h1>
-            <div class="subtitle">API Test Report - Full Suite</div>
+            <div class="subtitle">API Test Report - Full Suite (Exchange Only)</div>
             <div class="stats">
                 <div class="stat-card success">
                     <div class="stat-value">${successCount}</div>
@@ -404,7 +397,7 @@ function generateHtmlReport(results) {
         </div>
         
         <div class="footer">
-            <p>Report generated: ${new Date().toLocaleString()} | PhantomExchange API v1.0</p>
+            <p>Report generated: ${new Date().toLocaleString()} | PhantomExchange API v1.0 | Exchange-only mode (candle building is bot's responsibility)</p>
         </div>
     </div>
     
@@ -504,7 +497,9 @@ function generateHtmlReport(results) {
 }
 
 async function main() {
-    console.log('🚀 Starting API Test Suite...\n');
+    console.log('🚀 Starting API Test Suite...');
+    console.log('📡 Target: ' + BASE_URL);
+    console.log('⚠️  Note: OHLCV and Candle endpoints removed (exchange provides only real-time price feed)\n');
 
     const results = [];
     let passed = 0;
