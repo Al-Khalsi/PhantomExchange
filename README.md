@@ -1,85 +1,114 @@
-# 👻 PhantomExchange
+# PhantomExchange Mock Futures Exchange
 
-A professional TypeScript mock crypto exchange simulation built with Fastify and WebSockets. PhantomExchange provides a realistic in-memory exchange backend for experimenting with order placement, matching, balances, positions, market data, candles, order books, trades, and real-time event streams.
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)
+![Fastify](https://img.shields.io/badge/Fastify-5.x-000000?logo=fastify&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-Realtime-7C3AED)
+![License](https://img.shields.io/badge/License-ISC-blue)
 
-> ⚠️ This project is a simulation. It does not connect to real exchanges, custody real funds, or provide financial services.
+PhantomExchange is a mock cryptocurrency futures exchange API built with Fastify, TypeScript, and WebSocket streaming. It simulates a futures trading venue with live ticker generation, market and limit orders, long/short leveraged positions, orderbook depth, account balances, portfolio tracking, activity logs, reports, and mock multi-network asset operations.
 
----
+This project is designed for API prototyping, bot development, UI integration, exchange workflow testing, and local simulations where a realistic exchange-like backend is needed without connecting to a real trading venue or blockchain.
 
-## ✨ Features
+> This is a mock exchange for development and testing only. It does not execute real trades, custody funds, or broadcast blockchain transactions.
 
-- 🚀 **Fastify REST API** running on port `3000`
-- 📡 **WebSocket real-time streams** for tickers, depth, orders, trades, and portfolio updates
-- ⚙️ **Order matching engine** supporting `MARKET` and `LIMIT` orders
-- 💰 **Multi-asset balances** for `USDT`, `BTC`, `ETH`, `SOL`, `BNB`, and `XRP`
-- 🔒 **Balance lock / unlock flow** for open orders and settlement
-- 📈 **Portfolio and position tracking** with `LONG` / `SHORT` positions
-- 🧮 **Realized and unrealized PnL** calculations
-- 🕯️ **Candle engine** with `1m`, `5m`, `15m`, and `1h` aggregation
-- 🎲 **Price simulation engine** updating mock prices every `500ms`
-- 📚 **Order book aggregation** built from open orders
-- 🧾 **Trade history** with `0.1%` simulated fee
-- 📝 **Activity logs and reports** for exchange events
+## Quick Start
 
----
-
-## 🧰 Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Runtime | Node.js |
-| Language | TypeScript |
-| REST API | Fastify |
-| Realtime | ws WebSocket server |
-| IDs | uuid |
-| Development | ts-node-dev |
-| Storage | In-memory stores |
-
----
-
-## 📦 Installation
-
-### Prerequisites
-
-- Node.js `18+` recommended
-- npm
-
-### Setup
+1. Clone the repository and enter the project directory.
+2. Install dependencies with `npm install`.
+3. Start the development server with `npm run dev`.
+4. Open `http://localhost:3000` to verify the service is running.
+5. Run `node api-test-runner.js` or execute requests from `requests.http`.
 
 ```bash
-git clone <your-repository-url>
+git clone <repository-url>
+cd mock-exchange
+npm install
+npm run dev
+```
+
+## Features
+
+- **Futures trading engine** with USDT collateral, long/short positions, and leverage from `1x` to `100x`.
+- **Order management** for `MARKET` and `LIMIT` orders with create, list, fetch, cancel, open-order, and reduce-only flows.
+- **Order matching and orderbook depth** built from active orders with configurable depth responses.
+- **Portfolio accounting** with open positions, closed position history, equity, realized PNL, unrealized PNL, margin locking, and liquidation simulation.
+- **Realtime market data** with generated L1 ticker updates for all configured symbols every `500ms`.
+- **WebSocket event streaming** for ticker updates, depth updates, order events, trade events, and position lifecycle events.
+- **Multi-asset support** for many USDT futures markets including BTC, ETH, BNB, SOL, XRP, DeFi, meme, gaming, L2, storage, oracle, and AI symbols.
+- **Multi-network support** for mock deposits, withdrawals, transfers, asset metadata, network balances, stats, and health checks across ERC20, BEP20, TRC20, and Solana.
+- **Testing utilities** including a Node.js API test runner that generates HTML and JSON reports, plus a REST Client compatible `requests.http` file.
+
+## Tech Stack
+
+- **Runtime:** Node.js
+- **Language:** TypeScript
+- **HTTP server:** Fastify
+- **Realtime transport:** `ws` WebSocket server
+- **Development runner:** `ts-node-dev`
+- **Configuration:** `dotenv`
+- **IDs:** `uuid`
+- **Storage:** In-memory stores for accounts, balances, orders, trades, orderbooks, reports, activity logs, and network balances
+
+## Installation
+
+```bash
+git clone <repository-url>
 cd mock-exchange
 npm install
 ```
 
+### Environment Setup
+
+No environment variables are required for the current implementation. The server listens on port `3000` and host `0.0.0.0` as configured in `src/server.ts`.
+
+If you want to introduce environment-based configuration later, create a `.env` file and wire it through `src/config/env.ts`.
+
+## Running the Server
+
 ### Development
+
+Runs the TypeScript server with automatic restart on file changes.
 
 ```bash
 npm run dev
 ```
 
-The API starts at:
-
-```text
-http://localhost:3000
-```
-
-The WebSocket server is attached to the same HTTP server:
-
-```text
-ws://localhost:3000
-```
-
 ### Production Build
+
+Compiles TypeScript into `dist/`.
 
 ```bash
 npm run build
+```
+
+### Production Start
+
+Runs the compiled server.
+
+```bash
 npm start
 ```
 
----
+### Health Check
 
-## 🔌 REST API Documentation
+```bash
+curl http://localhost:3000/
+```
+
+Example response:
+
+```json
+{
+  "status": "PhantomExchange Running - Futures Mode",
+  "version": "1.0.0",
+  "symbols": 57,
+  "networks": 4,
+  "leverage": "1x - 100x"
+}
+```
+
+## API Documentation
 
 Base URL:
 
@@ -87,97 +116,379 @@ Base URL:
 http://localhost:3000
 ```
 
-### Health
+All JSON `POST` requests should include:
+
+```http
+Content-Type: application/json
+```
+
+## Account API
+
+Account endpoints expose trading balances, equity, PNL, default leverage, deposits, withdrawals, and network transfers.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/` | Server health/status response |
+| `GET` | `/account/balance` | Get legacy USDT trading balance and realized PNL. |
+| `GET` | `/account/equity` | Get account equity including unrealized PNL. |
+| `GET` | `/account/pnl` | Get realized and unrealized PNL. |
+| `GET` | `/account/balances` | Get trading balances plus network balances grouped by asset. |
+| `GET` | `/account/balances/:asset` | Get one asset's trading and network balances. |
+| `GET` | `/account/leverage` | Get default and maximum leverage settings. |
+| `POST` | `/account/leverage` | Set default leverage from `1` to `100`. |
+| `POST` | `/account/deposit` | Deposit into trading balance or a supported network balance. |
+| `POST` | `/account/withdraw` | Withdraw from trading balance or a supported network balance. |
+| `POST` | `/account/transfer` | Transfer an asset between supported networks with a mock bridge fee. |
 
-### Account
+### Get Account Balance
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/account/balance` | Get account cash balance and realized PnL | - |
-| `GET` | `/account/equity` | Get total account equity | - |
-| `GET` | `/account/pnl` | Get realized and unrealized PnL | - |
-| `GET` | `/account/balances` | Get all multi-asset balances | - |
-| `POST` | `/account/deposit` | Deposit mock funds into an asset balance | `{ "asset": "USDT", "amount": 1000 }` |
-| `POST` | `/account/withdraw` | Withdraw mock funds from an asset balance | `{ "asset": "USDT", "amount": 500 }` |
+```bash
+curl http://localhost:3000/account/balance
+```
 
-### Orders
+### Get Equity and PNL
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/orders` | Get all historical orders | - |
-| `GET` | `/orders/open` | Get currently open orders | - |
-| `GET` | `/orders/:id` | Get a single order by ID | `id` path parameter |
-| `POST` | `/orders` | Create a `MARKET` or `LIMIT` order | See examples below |
-| `DELETE` | `/orders/:id` | Cancel an open order | `id` path parameter |
+```bash
+curl http://localhost:3000/account/equity
+curl http://localhost:3000/account/pnl
+```
 
-### Portfolio & Positions
+### Get Multi-Asset Balances
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/portfolio` | Get full portfolio snapshot | - |
-| `GET` | `/positions/open` | Get open positions | - |
-| `GET` | `/positions/history` | Get closed position history | - |
+```bash
+curl http://localhost:3000/account/balances
+curl http://localhost:3000/account/balances/USDT
+```
 
-### Market Data
+### Set Default Leverage
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/market/tickers` | Get all live tickers | - |
-| `GET` | `/market/ticker/:symbol` | Get ticker for one symbol | Example: `/market/ticker/BTCUSDT` |
-| `GET` | `/market/ohlcv` | Get OHLCV candles from market data store | `symbol`, `timeframe` |
-| `GET` | `/market/last-candle` | Get latest candle for a symbol/timeframe | `symbol`, `timeframe` |
-| `GET` | `/market/orderbook` | Get aggregated order book from open orders | `symbol`, optional `depth` |
-| `GET` | `/candles` | Get generated candles from candle engine | `symbol`, `interval` |
+```bash
+curl -X POST http://localhost:3000/account/leverage \
+  -H "Content-Type: application/json" \
+  -d '{"leverage":20}'
+```
 
-### Trades
+Example body:
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/trades` | Get trade history | Optional `symbol`, `limit` |
-| `GET` | `/trades/order/:orderId` | Get trades linked to an order | `orderId` path parameter |
+```json
+{
+  "leverage": 20
+}
+```
 
-### Logs & Reports
+### Deposit to Trading Balance
 
-| Method | Endpoint | Description | Body / Query |
-| --- | --- | --- | --- |
-| `GET` | `/activity-logs` | Get exchange activity logs | - |
-| `GET` | `/reports` | Get generated reports | - |
-| `GET` | `/reports/:id` | Get one report by ID | `id` path parameter |
+Deposits without `networkId` go to the internal futures trading balance. Trading deposits currently support `USDT` only.
 
-> Note: The project includes route modules for activity logs, reports, and positions. Ensure they are registered in `src/server.ts` if you want those endpoints enabled in the running app.
+```bash
+curl -X POST http://localhost:3000/account/deposit \
+  -H "Content-Type: application/json" \
+  -d '{"asset":"USDT","amount":5000}'
+```
 
----
+### Withdraw from Trading Balance
 
-## 📡 WebSocket Documentation
+```bash
+curl -X POST http://localhost:3000/account/withdraw \
+  -H "Content-Type: application/json" \
+  -d '{"asset":"USDT","amount":1000}'
+```
 
-Connect to:
+### Deposit to a Network Balance
+
+```bash
+curl -X POST http://localhost:3000/account/deposit \
+  -H "Content-Type: application/json" \
+  -d '{"asset":"USDT","networkId":"erc20","amount":1000}'
+```
+
+Additional examples:
+
+```json
+{ "asset": "USDT", "networkId": "bep20", "amount": 2000 }
+{ "asset": "BNB", "networkId": "bep20", "amount": 5 }
+{ "asset": "SOL", "networkId": "solana", "amount": 10 }
+```
+
+### Withdraw from a Network Balance
+
+```bash
+curl -X POST http://localhost:3000/account/withdraw \
+  -H "Content-Type: application/json" \
+  -d '{"asset":"USDT","networkId":"erc20","amount":100,"address":"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2"}'
+```
+
+Additional example:
+
+```json
+{
+  "asset": "BNB",
+  "networkId": "bep20",
+  "amount": 1,
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2"
+}
+```
+
+### Transfer Between Networks
+
+```bash
+curl -X POST http://localhost:3000/account/transfer \
+  -H "Content-Type: application/json" \
+  -d '{"asset":"USDT","fromNetwork":"erc20","toNetwork":"bep20","amount":500}'
+```
+
+Additional example:
+
+```json
+{
+  "asset": "USDT",
+  "fromNetwork": "bep20",
+  "toNetwork": "trc20",
+  "amount": 300
+}
+```
+
+## Orders API
+
+Orders support `BUY` and `SELL` sides, `MARKET` and `LIMIT` types, optional per-order leverage, and optional `reduceOnly` behavior.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/orders` | Get all orders and order history. |
+| `GET` | `/orders/open` | Get currently open orders. |
+| `GET` | `/orders/:id` | Get a single order by ID. |
+| `POST` | `/orders` | Create a market or limit futures order. |
+| `DELETE` | `/orders/:id` | Cancel an order by ID. |
+
+### Create Market BUY Order
+
+Opens or increases a long position.
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"BUY","type":"MARKET","quantity":0.01,"leverage":10}'
+```
+
+### Create Market SELL Order
+
+Opens or increases a short position.
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"SELL","type":"MARKET","quantity":0.01,"leverage":15}'
+```
+
+### Create Limit Orders
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"BUY","type":"LIMIT","quantity":0.02,"price":64000,"leverage":10}'
+```
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"SELL","type":"LIMIT","quantity":0.02,"price":66000,"leverage":10}'
+```
+
+### Create Reduce-Only Order
+
+Closes or reduces an existing position without intentionally increasing exposure.
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"SELL","type":"MARKET","quantity":0.01,"reduceOnly":true}'
+```
+
+### List and Cancel Orders
+
+```bash
+curl http://localhost:3000/orders
+curl http://localhost:3000/orders/open
+curl http://localhost:3000/orders/ORDER_ID_HERE
+curl -X DELETE http://localhost:3000/orders/ORDER_ID_HERE
+```
+
+## Market API
+
+Market endpoints expose all generated tickers, symbol-specific tickers, and orderbook depth.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/market/tickers` | Get all realtime ticker snapshots. |
+| `GET` | `/market/ticker/:symbol` | Get ticker data for one symbol. |
+| `GET` | `/market/orderbook?symbol=:symbol&depth=:depth` | Get orderbook bids and asks for a symbol. |
+
+### Get All Tickers
+
+```bash
+curl http://localhost:3000/market/tickers
+```
+
+### Get Symbol Tickers
+
+```bash
+curl http://localhost:3000/market/ticker/BTCUSDT
+curl http://localhost:3000/market/ticker/ETHUSDT
+curl http://localhost:3000/market/ticker/SOLUSDT
+curl http://localhost:3000/market/ticker/BNBUSDT
+curl http://localhost:3000/market/ticker/XRPUSDT
+```
+
+### Get Orderbook Depth
+
+```bash
+curl "http://localhost:3000/market/orderbook?symbol=BTCUSDT"
+curl "http://localhost:3000/market/orderbook?symbol=BTCUSDT&depth=10"
+curl "http://localhost:3000/market/orderbook?symbol=ETHUSDT"
+curl "http://localhost:3000/market/orderbook?symbol=SOLUSDT&depth=15"
+```
+
+## Portfolio and Positions API
+
+Portfolio endpoints expose full account portfolio state, open positions, and closed position history.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/portfolio` | Get full portfolio state. |
+| `GET` | `/positions/open` | Get all open positions. |
+| `GET` | `/positions/history` | Get closed position history. |
+
+```bash
+curl http://localhost:3000/portfolio
+curl http://localhost:3000/positions/open
+curl http://localhost:3000/positions/history
+```
+
+### Liquidation Simulation Flow
+
+Open a high-leverage position, inspect its liquidation price, then let the price engine update prices until liquidation conditions are met.
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","side":"BUY","type":"MARKET","quantity":0.1,"leverage":100}'
+
+curl http://localhost:3000/positions/open
+```
+
+## Trades API
+
+Trade endpoints expose fills generated by order execution.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/trades` | Get recent trades across all symbols. |
+| `GET` | `/trades?symbol=:symbol` | Filter trades by symbol. |
+| `GET` | `/trades?symbol=:symbol&limit=:limit` | Filter by symbol and limit result count. |
+| `GET` | `/trades/order/:orderId` | Get trades for a specific order. |
+
+```bash
+curl http://localhost:3000/trades
+curl "http://localhost:3000/trades?symbol=BTCUSDT"
+curl "http://localhost:3000/trades?symbol=BTCUSDT&limit=25"
+curl http://localhost:3000/trades/order/ORDER_ID_HERE
+```
+
+## Network API
+
+Network endpoints expose supported blockchain networks, per-network assets, mock network balances, statistics, and health.
+
+Supported networks:
+
+- `erc20` — Ethereum Network
+- `bep20` — BNB Smart Chain
+- `trc20` — TRON Network
+- `solana` — Solana Network
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/networks` | Get all active blockchain networks. |
+| `GET` | `/networks/:networkId` | Get details for one network. |
+| `GET` | `/networks/:networkId/assets` | Get supported assets for one network. |
+| `GET` | `/networks/:networkId/assets/:asset` | Check one asset's support and config on one network. |
+| `GET` | `/network/balances` | Get balances grouped by network. |
+| `GET` | `/network/balances/:asset` | Get one asset's balances across all networks. |
+| `GET` | `/network/balances/network/:networkId` | Get all balances for one network. |
+| `GET` | `/network/stats` | Get mock network statistics. |
+| `GET` | `/network/health` | Get network subsystem health. |
+
+### Network Metadata
+
+```bash
+curl http://localhost:3000/networks
+curl http://localhost:3000/networks/erc20
+curl http://localhost:3000/networks/erc20/assets
+curl http://localhost:3000/networks/bep20/assets
+curl http://localhost:3000/networks/trc20/assets
+curl http://localhost:3000/networks/solana/assets
+curl http://localhost:3000/networks/erc20/assets/USDT
+```
+
+### Network Balances, Stats, and Health
+
+```bash
+curl http://localhost:3000/network/balances
+curl http://localhost:3000/network/balances/USDT
+curl http://localhost:3000/network/balances/network/erc20
+curl http://localhost:3000/network/stats
+curl http://localhost:3000/network/health
+```
+
+## Reports and Activity Logs API
+
+Reports and activity logs provide mock operational records for exchange workflows.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/activity-logs` | Get all activity log entries. |
+| `GET` | `/reports` | Get all reports. |
+| `GET` | `/reports/:id` | Get one report by ID. |
+
+```bash
+curl http://localhost:3000/activity-logs
+curl http://localhost:3000/reports
+curl http://localhost:3000/reports/YOUR_REPORT_ID_HERE
+```
+
+## WebSocket Guide
+
+The WebSocket server is attached to the same HTTP server.
 
 ```text
 ws://localhost:3000
 ```
 
-### Server Events
+Use `wscat`, a browser WebSocket client, or your application frontend to connect.
 
-| Event Type | Frequency / Trigger | Description |
-| --- | --- | --- |
-| `TICKER_UPDATE` | Every `500ms` | Broadcasts latest ticker data for all symbols |
-| `DEPTH_UPDATE` | Every `1s` after subscription | Sends order book depth updates for subscribed symbols |
-| `ORDER_CREATED` | Order placement | Emitted when an order is created |
-| `ORDER_FILLED` | Matching engine fill | Emitted when an order is fully filled |
-| `ORDER_UPDATED` | Partial fill/update | Emitted when an order state changes |
-| `ORDER_CANCELLED` | Order cancellation | Emitted when an order is cancelled |
-| `ORDER_REJECTED` | Validation/funds failure | Emitted when an order is rejected |
-| `TRADE_EXECUTED` | Trade match | Emitted when a trade is executed |
-| `POSITION_OPENED` | Position creation | Emitted when a new position opens |
-| `POSITION_CLOSED` | Position close | Emitted when a position closes |
-| `POSITION_UPDATED` | Mark price update | Emitted when position PnL changes |
-| `portfolio:update` | Portfolio changes | Broadcasts latest portfolio snapshot |
+```bash
+npx wscat -c ws://localhost:3000
+```
 
-### Subscribe To Depth
+### Automatic Ticker Stream
+
+Every connected client receives `TICKER_UPDATE` messages every `500ms`.
+
+```json
+{
+  "type": "TICKER_UPDATE",
+  "data": [
+    {
+      "symbol": "BTCUSDT",
+      "price": 65012.34,
+      "change": 0.18,
+      "volume": 123456
+    }
+  ]
+}
+```
+
+### Subscribe to Orderbook Depth
+
+Send this message after connecting:
 
 ```json
 {
@@ -186,7 +497,21 @@ ws://localhost:3000
 }
 ```
 
-### Unsubscribe From Depth
+Subscribed clients receive `DEPTH_UPDATE` messages every `1s` for each subscribed symbol.
+
+```json
+{
+  "type": "DEPTH_UPDATE",
+  "symbol": "BTCUSDT",
+  "data": {
+    "bids": [[64000, 0.02]],
+    "asks": [[66000, 0.02]],
+    "timestamp": 1710000000000
+  }
+}
+```
+
+### Unsubscribe from Orderbook Depth
 
 ```json
 {
@@ -195,285 +520,123 @@ ws://localhost:3000
 }
 ```
 
-### Example WebSocket Client
+### Exchange Event Messages
 
-```js
-const ws = new WebSocket("ws://localhost:3000");
+The server forwards order, position, and trade events to connected WebSocket clients.
 
-ws.onopen = () => {
-  ws.send(JSON.stringify({
-    type: "SUBSCRIBE_DEPTH",
-    symbol: "BTCUSDT"
-  }));
-};
+| Message Type | Description |
+| --- | --- |
+| `TICKER_UPDATE` | Realtime ticker snapshot for all symbols every `500ms`. |
+| `DEPTH_UPDATE` | Orderbook depth update for subscribed symbols every `1s`. |
+| `ORDER_CREATED` | Emitted when an order is created. |
+| `ORDER_FILLED` | Emitted when an order is filled. |
+| `ORDER_REJECTED` | Emitted when an order is rejected. |
+| `ORDER_CANCELLED` | Emitted when an order is cancelled. |
+| `ORDER_UPDATED` | Emitted when an order changes state. |
+| `POSITION_OPENED` | Emitted when a position opens. |
+| `POSITION_UPDATED` | Emitted when a position changes. |
+| `POSITION_CLOSED` | Emitted when a position closes. |
+| `TRADE_EXECUTED` | Emitted when a trade is executed. |
 
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  console.log(message.type, message.data);
-};
-```
+Example event:
 
----
-
-## 🧪 Example cURL Requests
-
-### Check Server Status
-
-```bash
-curl http://localhost:3000/
-```
-
-### Get All Tickers
-
-```bash
-curl http://localhost:3000/market/tickers
-```
-
-### Get One Ticker
-
-```bash
-curl http://localhost:3000/market/ticker/BTCUSDT
-```
-
-### Deposit USDT
-
-```bash
-curl -X POST http://localhost:3000/account/deposit \
-  -H "Content-Type: application/json" \
-  -d '{"asset":"USDT","amount":10000}'
-```
-
-### Withdraw USDT
-
-```bash
-curl -X POST http://localhost:3000/account/withdraw \
-  -H "Content-Type: application/json" \
-  -d '{"asset":"USDT","amount":500}'
-```
-
-### Place A Market Buy Order
-
-```bash
-curl -X POST http://localhost:3000/orders \
-  -H "Content-Type: application/json" \
-  -d '{
+```json
+{
+  "type": "ORDER_FILLED",
+  "data": {
+    "id": "order-id",
     "symbol": "BTCUSDT",
     "side": "BUY",
     "type": "MARKET",
-    "quantity": 0.01
-  }'
+    "status": "FILLED"
+  }
+}
 ```
 
-### Place A Limit Sell Order
+## Testing
+
+### 1. Start the server
 
 ```bash
-curl -X POST http://localhost:3000/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "BTCUSDT",
-    "side": "SELL",
-    "type": "LIMIT",
-    "quantity": 0.01,
-    "price": 70000
-  }'
-```
-
-### Get Open Orders
-
-```bash
-curl http://localhost:3000/orders/open
-```
-
-### Cancel An Order
-
-```bash
-curl -X DELETE http://localhost:3000/orders/<order-id>
-```
-
-### Get Order Book
-
-```bash
-curl "http://localhost:3000/market/orderbook?symbol=BTCUSDT&depth=20"
-```
-
-### Get Candles
-
-```bash
-curl "http://localhost:3000/candles?symbol=BTCUSDT&interval=1m"
-```
-
-### Get OHLCV Data
-
-```bash
-curl "http://localhost:3000/market/ohlcv?symbol=BTCUSDT&timeframe=1h"
-```
-
-### Get Trades
-
-```bash
-curl "http://localhost:3000/trades?symbol=BTCUSDT&limit=50"
-```
-
-### Get Portfolio
-
-```bash
-curl http://localhost:3000/portfolio
-```
-
----
-
-## 🗂️ Project Structure
-
-```text
-mock-exchange/
-├── src/
-│   ├── config/
-│   │   └── env.ts
-│   ├── engine/
-│   │   ├── candleEngine.ts
-│   │   ├── matchingEngine.ts
-│   │   ├── orderEngine.ts
-│   │   └── priceEngine.ts
-│   ├── realtime/
-│   │   ├── eventListener.ts
-│   │   ├── portfolioPublisher.ts
-│   │   └── websocket.ts
-│   ├── routes/
-│   │   ├── accountRoutes.ts
-│   │   ├── activityLogRoutes.ts
-│   │   ├── candleRoutes.ts
-│   │   ├── marketRoutes.ts
-│   │   ├── orderBookRoutes.ts
-│   │   ├── orderRoutes.ts
-│   │   ├── portfolioRoutes.ts
-│   │   ├── positionRoutes.ts
-│   │   ├── reportRoutes.ts
-│   │   └── tradeRoutes.ts
-│   ├── store/
-│   │   ├── accountStore.ts
-│   │   ├── activityLogStore.ts
-│   │   ├── balanceStore.ts
-│   │   ├── candleStore.ts
-│   │   ├── marketDataStore.ts
-│   │   ├── marketStore.ts
-│   │   ├── orderBookStore.ts
-│   │   ├── orderStore.ts
-│   │   ├── portfolioStore.ts
-│   │   ├── reportStore.ts
-│   │   └── tradeStore.ts
-│   ├── types/
-│   │   ├── orderbook.ts
-│   │   └── position.ts
-│   ├── utils/
-│   │   ├── eventBus.ts
-│   │   └── mockMarketData.ts
-│   └── server.ts
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-├── requests.http
-└── README.md
-```
-
----
-
-## ⚙️ How It Works
-
-### Matching Engine
-
-The matching engine processes `MARKET` and `LIMIT` orders against open orders for the same symbol:
-
-1. Orders are validated for required fields and available balance.
-2. Funds or assets can be locked while limit orders remain open.
-3. Compatible buy and sell orders are matched by price and quantity.
-4. Filled quantities are updated on both sides of the trade.
-5. Orders transition through statuses such as `OPEN`, `PARTIALLY_FILLED`, `FILLED`, and `CANCELLED`.
-6. Executions generate trade records and WebSocket events.
-
-### Position Management
-
-Portfolio tracking supports directional positions:
-
-- `LONG` positions profit when mark price rises above entry price.
-- `SHORT` positions profit when mark price falls below entry price.
-- Unrealized PnL updates as simulated market prices change.
-- Realized PnL is calculated when positions close.
-- Portfolio equity combines available cash/balance with unrealized PnL.
-
-### Candle Engine
-
-The candle engine turns price ticks into OHLCV data:
-
-- Generates base `1m` candles from simulated ticker updates.
-- Aggregates higher intervals: `5m`, `15m`, and `1h`.
-- Stores candles by symbol and interval.
-- Exposes candles through `/candles`, `/market/ohlcv`, and `/market/last-candle`.
-
-### Price Engine
-
-The price engine simulates live market movement:
-
-- Updates ticker prices every `500ms`.
-- Publishes fresh ticker snapshots to connected WebSocket clients.
-- Feeds portfolio mark-price updates for unrealized PnL.
-- Provides mock market conditions for orders, candles, and order books.
-
-### Order Book Aggregation
-
-The order book is built from currently open limit orders:
-
-- Buy orders become bids.
-- Sell orders become asks.
-- Price levels are aggregated by quantity.
-- Depth can be limited with the `depth` query parameter.
-
-### Trade Fees
-
-Each executed trade records a simulated fee:
-
-```text
-fee = quoteQuantity * 0.001
-```
-
-That equals a `0.1%` fee rate.
-
----
-
-## 🧪 Testing
-
-The current `package.json` contains a placeholder test script:
-
-```bash
-npm test
-```
-
-To validate the project today, use the following workflow:
-
-```bash
-npm run build
 npm run dev
 ```
 
-Then exercise the API with `curl`, Postman, Insomnia, or the included `requests.http` file.
+### 2. Run the test runner in a new terminal
 
-Recommended future test coverage:
+```bash
+node api-test-runner.js
+```
 
-- Unit tests for order validation and matching behavior
-- Balance lock/unlock and settlement tests
-- PnL calculation tests for long and short positions
-- Candle aggregation tests for `1m`, `5m`, `15m`, and `1h`
-- WebSocket event emission tests
-- REST API integration tests
+This runs ~30 API tests covering accounts, orders, trades, positions, market data, and networks.
 
----
+### 3. Check the results
 
-## 🧾 License
+Two files are created in the project root:
 
-This project is licensed under the ISC License. See `package.json` for the current license declaration.
+- `api-test-report.html` - Open this in your browser for a visual pass/fail report.
+- `api-test-results.json` - Raw JSON data.
 
----
+Make sure the server is running BEFORE running the tests.
 
-## ⚠️ Disclaimer
+## Environment Variables
 
-PhantomExchange is intended for education, prototyping, demos, and local development only. It uses in-memory state and simulated prices. Data is reset when the server restarts. Do not use this project for real trading, investment decisions, custody, compliance, accounting, or production financial infrastructure.
+No required environment variables are currently used.
 
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `PORT` | No | `3000` in code | Not currently wired; server port is hardcoded in `src/server.ts`. |
+| `HOST` | No | `0.0.0.0` in code | Not currently wired; server host is hardcoded in `src/server.ts`. |
+
+## Project Structure
+
+```text
+src/
+├── server.ts     # Entry point: starts HTTP + WebSocket
+├── config/       # Settings: 57 trading pairs, 4 blockchain networks
+├── engine/       # Core logic: price updates, order matching, trade execution
+├── realtime/     # WebSocket: live tickers, depth, order/position events
+├── routes/       # All API endpoints (account, orders, market, portfolio, etc.)
+├── store/        # In-memory data (orders, positions, balances, trades)
+├── types/        # TypeScript interfaces
+└── utils/        # EventBus for internal communication
+```
+
+### What each folder does
+
+| Folder | Purpose |
+|--------|---------|
+| `config/` | Static lists of tradable symbols and blockchain networks. |
+| `engine/` | Price simulation (500ms updates), order validation, matching engine. |
+| `realtime/` | WebSocket server that pushes tickers, depth, and events to clients. |
+| `routes/` | All HTTP endpoints you can call (see API docs above). |
+| `store/` | Simple in-memory storage - resets when server restarts. |
+| `types/` | TypeScript definitions for orders, positions, orderbook. |
+| `utils/` | Event bus that connects different parts of the system. |
+
+## Supported Markets
+
+The exchange provides generated USDT futures tickers for the symbols configured in `src/config/symbols.ts`, including:
+
+- Major: `BTCUSDT`, `ETHUSDT`, `BNBUSDT`, `SOLUSDT`, `XRPUSDT`
+- Layer 1: `ADAUSDT`, `AVAXUSDT`, `DOTUSDT`, `MATICUSDT`, `ATOMUSDT`, `NEARUSDT`, `ALGOUSDT`, `VETUSDT`, `EGLDUSDT`, `FTMUSDT`
+- DeFi: `UNIUSDT`, `AAVEUSDT`, `LINKUSDT`, `CRVUSDT`, `CAKEUSDT`, `SUSHIUSDT`, `COMPUSDT`, `MKRUSDT`, `SNXUSDT`, `LDOUSDT`
+- Meme: `DOGEUSDT`, `SHIBUSDT`, `PEPEUSDT`, `FLOKIUSDT`, `BONKUSDT`, `WIFUSDT`
+- Gaming, Layer 2, storage, oracle, AI, and other popular markets such as `SANDUSDT`, `MANAUSDT`, `ARBUSDT`, `OPUSDT`, `FILUSDT`, `PYTHUSDT`, `FETUSDT`, `RNDRUSDT`, and more
+
+## Roadmap
+
+Potential future improvements:
+
+- Add environment-driven `PORT`, `HOST`, and runtime configuration.
+- Add persistent storage with PostgreSQL, SQLite, Redis, or an event-sourced ledger.
+- Add authentication, API keys, user accounts, and scoped permissions.
+- Add OpenAPI/Swagger documentation generated from route schemas.
+- Add formal unit and integration tests with a standard `npm test` command.
+- Add deterministic test fixtures and reset endpoints for repeatable simulations.
+- Add funding rates, mark price, index price, maintenance margin tiers, and insurance fund logic.
+- Add WebSocket channel namespacing and per-symbol ticker subscriptions.
+- Add Docker and Docker Compose support for local deployment.
+
+## License
+
+ISC
