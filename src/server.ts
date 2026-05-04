@@ -1,15 +1,11 @@
 import Fastify from "fastify";
 import { startPriceEngine } from "./engine/priceEngine";
-import { startCandleEngine } from "./engine/candleEngine";
 import { setupWebSocket } from "./realtime/websocket";
 import { setupEventListeners } from "./realtime/eventListener";
 import { marketRoutes } from "./routes/marketRoutes";
 import { orderRoutes } from "./routes/orderRoutes";
 import { portfolioRoutes } from "./routes/portfolioRoutes";
 import { accountRoutes } from "./routes/accountRoutes";
-import { candleRoutes } from "./routes/candleRoutes";
-import { marketDataStore } from "./store/marketDataStore";
-import { generateMockCandles } from "./utils/mockMarketData";
 import { orderBookRoutes } from "./routes/orderBookRoutes";
 import { tradeRoutes } from "./routes/tradeRoutes";
 import positionRoutes from "./routes/positionRoutes";
@@ -26,14 +22,13 @@ const app = Fastify({ logger: true });
 app.register(marketRoutes);
 app.register(orderRoutes);
 app.register(portfolioRoutes);
-app.register(accountRoutes);      // Contains unified deposit/withdraw
-app.register(candleRoutes);
+app.register(accountRoutes);
 app.register(orderBookRoutes);
 app.register(tradeRoutes);
 app.register(positionRoutes);
 app.register(activityLogRoutes);
 app.register(reportRoutes);
-app.register(networkRoutes);       // Network info only (no /account conflicts)
+app.register(networkRoutes);
 
 // Health check endpoint
 app.get("/", async () => ({ 
@@ -51,17 +46,6 @@ const start = async () => {
     networkBalanceStore.initializeDefaultBalances();
     console.log("💰 Network balances initialized");
 
-    // Inject mock 1h OHLCV for all symbols
-    console.log(`📊 Loading historical data for ${SYMBOLS.length} symbols...`);
-    
-    for (const config of SYMBOLS) {
-      marketDataStore.set(
-        config.symbol, 
-        "1h", 
-        generateMockCandles(config.basePrice, 200)
-      );
-    }
-
     // Start HTTP server
     const server = await app.listen({
       port: 3000,
@@ -73,9 +57,6 @@ const start = async () => {
 
     // Start price engine (L1 tick data for all pairs)
     startPriceEngine();
-
-    // Start candle engine (1m + aggregation to 5m, 15m, 1h)
-    startCandleEngine();
 
     // Setup WebSocket server for realtime data
     setupWebSocket(app.server);
