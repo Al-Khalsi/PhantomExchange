@@ -1,4 +1,4 @@
-// api-test-runner.js
+// get result with ==> node api-test-runner.js
 
 import fs from 'fs';
 import path from 'path';
