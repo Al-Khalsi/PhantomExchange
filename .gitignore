@@ -41,3 +41,6 @@ temp/
 
 tree.txt
 dump.txt
+
+api-test-report.html
+api-test-results.json
