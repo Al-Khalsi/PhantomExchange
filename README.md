@@ -18,7 +18,7 @@ This project is designed for API prototyping, bot development, UI integration, e
 2. Install dependencies with `npm install`.
 3. Start the development server with `npm run dev`.
 4. Open `http://localhost:3000` to verify the service is running.
-5. Run `node api-test-runner.js` or execute requests from `requests.http`.
+5. Run `node api-test-runner.ts` or execute requests from `requests.http`.
 
 ```bash
 git clone <repository-url>
@@ -564,7 +564,7 @@ npm run dev
 ### 2. Run the test runner in a new terminal
 
 ```bash
-node api-test-runner.js
+node api-test-runner.ts
 ```
 
 This runs ~30 API tests covering accounts, orders, trades, positions, market data, and networks.
