@@ -18,7 +18,6 @@ import { NETWORKS } from "./config/networks";
 
 const app = Fastify({ logger: true });
 
-// Register all routes (order matters for error handling)
 app.register(marketRoutes);
 app.register(orderRoutes);
 app.register(portfolioRoutes);
@@ -30,38 +29,30 @@ app.register(activityLogRoutes);
 app.register(reportRoutes);
 app.register(networkRoutes);
 
-// Health check endpoint
-app.get("/", async () => ({ 
+app.get("/", async () => ({
   status: "PhantomExchange Running - Futures Mode",
-  version: "1.0.0",
+  version: "1.1.0",
   symbols: SYMBOLS.length,
-  networks: NETWORKS.filter(n => n.isActive).length,
-  leverage: "1x - 100x"
+  networks: NETWORKS.filter((n) => n.isActive).length,
+  leverage: "1x - 100x",
+  priceEngine: "Realistic with BTC correlation & momentum",
 }));
 
-// Start server
 const start = async () => {
   try {
-    // Initialize network balances with default values
     networkBalanceStore.initializeDefaultBalances();
-    console.log("💰 Network balances initialized");
+    console.log("[Server] Network balances initialized");
 
-    // Start HTTP server
     const server = await app.listen({
       port: 3000,
-      host: "0.0.0.0"
+      host: "0.0.0.0",
     });
 
-    // Setup event listeners for logging and realtime updates
     setupEventListeners();
-
-    // Start price engine (L1 tick data for all pairs)
     startPriceEngine();
-
-    // Setup WebSocket server for realtime data
     setupWebSocket(app.server);
 
-    app.log.info(`🚀 PhantomExchange Futures started on port 3000`);
+    app.log.info("[Server] PhantomExchange Futures started on port 3000");
   } catch (err) {
     app.log.error(err);
     process.exit(1);
