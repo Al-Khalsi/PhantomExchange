@@ -4,7 +4,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)
 ![Fastify](https://img.shields.io/badge/Fastify-5.x-000000?logo=fastify&logoColor=white)
 ![WebSocket](https://img.shields.io/badge/WebSocket-Realtime-7C3AED)
-![License](https://img.shields.io/badge/License-ISC-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 PhantomExchange is a mock cryptocurrency futures exchange API built with Fastify, TypeScript, and WebSocket streaming. It simulates a futures trading venue with live ticker generation, market and limit orders, long/short leveraged positions, orderbook depth, account balances, portfolio tracking, activity logs, reports, and mock multi-network asset operations.
 
@@ -639,4 +639,4 @@ Potential future improvements:
 
 ## License
 
-ISC
+MIT
